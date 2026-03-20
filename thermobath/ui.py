@@ -36,10 +36,6 @@ from PyQt5.QtGui import QIcon, QPainter, QPen, QColor, QFont
 from PyQt5.QtCore import Qt, QThread, pyqtSignal, QRectF, QMutex, QWaitCondition, QTimer, QPointF
 from . import core as thermobath_core
 from . import daq
-try:
-    from .daq import DAQ_HATS_INSTALLED
-except (ImportError, NameError):
-    DAQ_HATS_INSTALLED = False
 
 
 def resource_path(relative_path):
@@ -781,17 +777,15 @@ class ThermobathUI(QWidget):
         self.layout.addLayout(labeled_icon_row("Minimum Temperature:", "thermometer", self.min_temp_input))
         self.layout.addLayout(labeled_icon_row("Initial Overheat:", "fire", self.initial_overheat_input))
 
-        # MCC 128 DAQ widgets
-        self.mcc128_address_input = QSpinBox()
-        self.mcc128_address_input.setRange(0, 7)
-        self.detect_daq_button = QPushButton("Detect")
-        self.detect_daq_button.clicked.connect(self._discover_and_set_address)
-        
-        addr_row = QHBoxLayout()
-        addr_row.addWidget(QLabel("MCC 128 Address:"))
-        addr_row.addWidget(self.mcc128_address_input)
-        addr_row.addWidget(self.detect_daq_button)
-        self.layout.addLayout(addr_row)
+        # DATAQ DAQ widgets
+        self.daq_com_port_combo = QComboBox()
+        self.refresh_daq_ports_button = QPushButton("Refresh DAQ Ports")
+
+        daq_port_row = QHBoxLayout()
+        daq_port_row.addWidget(QLabel("DAQ COM Port:"))
+        daq_port_row.addWidget(self.daq_com_port_combo)
+        daq_port_row.addWidget(self.refresh_daq_ports_button)
+        self.layout.addLayout(daq_port_row)
 
         self.sample_rate_hz_input = QDoubleSpinBox()
         self.sample_rate_hz_input.setRange(0.1, 20.0)
@@ -951,11 +945,12 @@ class ThermobathUI(QWidget):
 
         # Populate ports
         self.refresh_ports_button.clicked.connect(self.populate_ports)
+        self.refresh_daq_ports_button.clicked.connect(self.populate_daq_ports)
         self.test_connection_button.clicked.connect(self.test_connection)
         self.standby_button.clicked.connect(self.toggle_standby)
         self.manual_standby = False
         self.populate_ports()
-        self._discover_and_set_address()
+        self.populate_daq_ports()
 
     def update_comm_status(self, message, is_ok):
         """Update the communication status label text and color."""
@@ -971,13 +966,18 @@ class ThermobathUI(QWidget):
         self.current_temp_label.setText(f"Current: {current_temp:.2f}°{unit}")
         self.target_temp_label.setText(f"Target: {target_temp:.2f}°{unit}")
         
-    def _discover_and_set_address(self):
-        address = daq.discover_mcc128_address()
-        if address is not None:
-            self.mcc128_address_input.setValue(address)
-            self.status_label.setText(f"Status: Found MCC 128 at address {address}.")
-        else:
-            self.status_label.setText("Status: No MCC 128 DAQ found.")
+    def populate_daq_ports(self):
+        """Scan for and populate DAQ COM ports in the dropdown."""
+        current_port = self.daq_com_port_combo.currentText()
+        self.daq_com_port_combo.clear()
+        ports = thermobath_core.get_available_ports()
+        if ports:
+            self.daq_com_port_combo.addItems(ports)
+
+        # Restore previous selection if it's still available.
+        index = self.daq_com_port_combo.findText(current_port)
+        if index != -1:
+            self.daq_com_port_combo.setCurrentIndex(index)
 
     def _default_engineering_config(self):
         return [
@@ -1172,16 +1172,17 @@ class ThermobathUI(QWidget):
         
         base_reader = None
 
-        if not DAQ_HATS_INSTALLED:
-            QMessageBox.critical(self, "DAQ Library Not Found", 
-                                    "The 'daqhats' library is not installed. Please install it to use the MCC 128 DAQ.")
+        com_port = self.daq_com_port_combo.currentText().strip()
+        if not com_port:
+            self.status_label.setText("Status: No DAQ COM port selected.")
+            QMessageBox.critical(self, "DAQ Port Required", "Please select a DAQ COM port.")
             return
+
         try:
-            address = self.mcc128_address_input.value()
-            base_reader = daq.MCC128PressureSource(address=address)
+            base_reader = daq.DataqSerialPressureSource(com_port=com_port)
         except Exception as e:
             self.status_label.setText(f"Status: Failed to open DAQ: {e}")
-            QMessageBox.critical(self, "DAQ Error", f"Failed to initialize MCC 128 DAQ at address {address}.\\n\\n{e}")
+            QMessageBox.critical(self, "DAQ Error", f"Failed to initialize DATAQ DAQ on {com_port}.\\n\\n{e}")
             return
         
         if not base_reader:
@@ -1351,7 +1352,9 @@ class ThermobathUI(QWidget):
         self.temp_unit_combo.blockSignals(False)
         self.apply_temp_unit(unit, convert_values=False)
 
-        self.mcc128_address_input.setValue(config.get("mcc128_address", 0))
+        saved_daq_port = config.get("daq_com_port", "")
+        if saved_daq_port:
+            self.daq_com_port_combo.setCurrentText(saved_daq_port)
         self.sample_rate_hz_input.setValue(config.get("sample_rate_hz", 1.0))
         self.log_file_input.setText(config.get("log_file", ""))
         channels = config.get("channels", ["0", "1", "2", "3"])
@@ -1374,7 +1377,7 @@ class ThermobathUI(QWidget):
         config = {
             "port": self.port_combo.currentText(),
             "temp_unit": self.temp_unit_combo.currentText(),
-            "mcc128_address": self.mcc128_address_input.value(),
+            "daq_com_port": self.daq_com_port_combo.currentText(),
             "sample_rate_hz": self.sample_rate_hz_input.value(),
             "log_file": self.log_file_input.text().strip(),
             "channels": [edit.text().strip() for edit in self.channel_inputs],

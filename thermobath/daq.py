@@ -6,63 +6,97 @@ This module provides PressureSource implementations for various DAQ hardware.
 import time
 from PyQt5.QtCore import QThread, pyqtSignal
 try:
-    from daqhats import mcc128, OptionFlags, HatIDs, HatError, hat_list
-    DAQ_HATS_INSTALLED = True
+    import serial
 except ImportError:
-    DAQ_HATS_INSTALLED = False
+    serial = None
 
 from .core import PressureSource
 
-def discover_mcc128_address():
-    """Discover the address of the first available MCC 128 HAT."""
-    if not DAQ_HATS_INSTALLED:
-        return None
-    
-    hats = hat_list(filter_by_id=HatIDs.MCC_128)
-    if not hats:
-        return None
-    
-    return hats[0].address
 
+class DataqSerialPressureSource(PressureSource):
+    """Pressure source that communicates with a DATAQ USB device over serial."""
 
+    def __init__(self, com_port, baudrate=9600, timeout_s=0.5, write_timeout_s=0.5):
+        if serial is None:
+            raise ImportError("pyserial is not installed. Install it with 'pip install pyserial'.")
 
-class MCC128PressureSource(PressureSource):
-    """Pressure source backed by a Measurement Computing MCC128 DAQ HAT.
+        self.com_port = com_port
+        self.serial = serial.Serial(
+            port=com_port,
+            baudrate=baudrate,
+            timeout=timeout_s,
+            write_timeout=write_timeout_s,
+        )
+        self.serial.reset_input_buffer()
+        self.serial.reset_output_buffer()
 
-    Args:
-        address (int): The board address of the DAQ HAT.
-    """
+    def _build_read_command(self, channels):
+        # Generic ASCII fallback command for simple query/response device modes.
+        channel_list = ",".join(str(ch) for ch in channels)
+        return f"READ {channel_list}\n".encode("ascii")
 
-    def __init__(self, address=0):
-        if not DAQ_HATS_INSTALLED:
-            raise ImportError("daqhats library is not installed. Cannot use MCC128.")
+    def _parse_ascii_values(self, response_text, channels):
+        values = [None] * len(channels)
+        if not response_text:
+            return values
 
-        self.address = address
-        self.hat = mcc128(self.address)
+        # Supports either "v0,v1,..." or "ch:val,ch:val" styles.
+        tokens = [token.strip() for token in response_text.replace(";", ",").split(",") if token.strip()]
+        if not tokens:
+            return values
 
-        # In case the HAT was left in a different state
-        # Set the channel mask to read all channels initially
-        self.hat.a_in_mode_write(0) # Single-ended mode
-        self.hat.a_in_range_write(0) # +/- 10V range, can be configured if needed
+        channel_index = {ch: idx for idx, ch in enumerate(channels)}
+        sequential_idx = 0
+        for token in tokens:
+            if ":" in token:
+                ch_text, val_text = token.split(":", 1)
+                try:
+                    ch = int(ch_text.strip())
+                    if ch in channel_index:
+                        values[channel_index[ch]] = float(val_text.strip())
+                except (TypeError, ValueError):
+                    continue
+            else:
+                if sequential_idx >= len(values):
+                    break
+                try:
+                    values[sequential_idx] = float(token)
+                except ValueError:
+                    values[sequential_idx] = None
+                sequential_idx += 1
 
-    def read_channel(self, channel):
-        """Read a single voltage value from the specified channel."""
-        try:
-            return self.hat.a_in_read(channel)
-        except HatError as e:
-            # Handle DAQ errors, e.g., device not found
-            print(f"Error reading from MCC128 channel {channel}: {e}")
-            return None
+        return values
 
     def read_channels(self, channels):
-        """Read voltage values from a list of channels."""
-        # The MCC128 library doesn't have a bulk read for arbitrary channels,
-        # so we read them one by one.
-        return [self.read_channel(ch) for ch in channels]
+        if not channels:
+            return []
+
+        if not getattr(self, "serial", None) or not self.serial.is_open:
+            return [None] * len(channels)
+
+        try:
+            command = self._build_read_command(channels)
+            self.serial.reset_input_buffer()
+            self.serial.write(command)
+            self.serial.flush()
+
+            raw_response = self.serial.readline()
+            if not raw_response:
+                return [None] * len(channels)
+
+            response_text = raw_response.decode("ascii", errors="ignore").strip()
+            return self._parse_ascii_values(response_text, channels)
+        except (TimeoutError, serial.SerialTimeoutException, serial.SerialException):
+            return [None] * len(channels)
+        except Exception:
+            return [None] * len(channels)
 
     def close(self):
-        """No explicit close needed for mcc128, but included for consistency."""
-        pass
+        if getattr(self, "serial", None) and self.serial.is_open:
+            try:
+                self.serial.close()
+            except serial.SerialException:
+                pass
 
 
 class DAQMonitorThread(QThread):
