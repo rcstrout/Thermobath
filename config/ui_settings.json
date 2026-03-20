@@ -1,0 +1,53 @@
+{
+  "port": "MOCK",
+  "temp_unit": "F",
+  "windaq_log_file": "",
+  "delimiter": ",",
+  "has_header": true,
+  "sample_rate_hz": 1.0,
+  "channels": [
+    "1",
+    "2",
+    "3",
+    "4"
+  ],
+  "engineering_channels": [
+    {
+      "label": "Ch 1",
+      "volt_low": 0.0,
+      "volt_high": 5.0,
+      "eng_low": 0.0,
+      "eng_high": 100.0,
+      "eu_label": "EU"
+    },
+    {
+      "label": "Ch 2",
+      "volt_low": 0.0,
+      "volt_high": 5.0,
+      "eng_low": 0.0,
+      "eng_high": 100.0,
+      "eu_label": "EU"
+    },
+    {
+      "label": "Ch 3",
+      "volt_low": 0.0,
+      "volt_high": 5.0,
+      "eng_low": 0.0,
+      "eng_high": 100.0,
+      "eu_label": "EU"
+    },
+    {
+      "label": "Ch 4",
+      "volt_low": 0.0,
+      "volt_high": 5.0,
+      "eng_low": 0.0,
+      "eng_high": 100.0,
+      "eu_label": "EU"
+    }
+  ],
+  "pressure_max": 17.0,
+  "over_pressure_behavior": "Extend Hold",
+  "autoscale": true,
+  "plot_min": 1.0,
+  "plot_max": 0.0
+}

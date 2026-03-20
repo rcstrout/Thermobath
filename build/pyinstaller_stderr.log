@@ -1,0 +1,79 @@
+831 INFO: PyInstaller: 6.19.0, contrib hooks: 2026.3
+832 INFO: Python: 3.13.12
+853 INFO: Platform: Windows-11-10.0.26200-SP0
+854 INFO: Python environment: C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.13_3.13.3312.0_x64__qbz5n2kfra8p0
+864 INFO: Removing temporary files and cleaning cache in C:\Users\RC Strout\AppData\Local\pyinstaller
+872 INFO: Module search paths (PYTHONPATH):
+['C:\\Users\\RC Strout\\Code\\Thermobath',
+ 'C:\\Program '
+ 'Files\\WindowsApps\\PythonSoftwareFoundation.Python.3.13_3.13.3312.0_x64__qbz5n2kfra8p0\\python313.zip',
+ 'C:\\Program '
+ 'Files\\WindowsApps\\PythonSoftwareFoundation.Python.3.13_3.13.3312.0_x64__qbz5n2kfra8p0\\DLLs',
+ 'C:\\Program '
+ 'Files\\WindowsApps\\PythonSoftwareFoundation.Python.3.13_3.13.3312.0_x64__qbz5n2kfra8p0\\Lib',
+ 'C:\\Program '
+ 'Files\\WindowsApps\\PythonSoftwareFoundation.Python.3.13_3.13.3312.0_x64__qbz5n2kfra8p0',
+ 'C:\\Users\\RC '
+ 'Strout\\AppData\\Local\\Packages\\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\\LocalCache\\local-packages\\Python313\\site-packages',
+ 'C:\\Program '
+ 'Files\\WindowsApps\\PythonSoftwareFoundation.Python.3.13_3.13.3312.0_x64__qbz5n2kfra8p0\\Lib\\site-packages',
+ 'C:\\Users\\RC Strout\\Code\\Thermobath\\scripts']
+1340 INFO: Appending 'datas' from .spec
+1341 INFO: checking Analysis
+1341 INFO: Building Analysis because Analysis-00.toc is non existent
+1342 INFO: Looking for Python shared library...
+1342 INFO: Using Python shared library: C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.13_3.13.3312.0_x64__qbz5n2kfra8p0\python313.dll
+1342 INFO: Running Analysis Analysis-00.toc
+1342 INFO: Target bytecode optimization level: 0
+1343 INFO: Initializing module dependency graph...
+1345 INFO: Initializing module graph hook caches...
+1420 INFO: Analyzing modules for base_library.zip ...
+2541 INFO: Processing standard module hook 'hook-encodings.py' from 'C:\\Users\\RC Strout\\AppData\\Local\\Packages\\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\\LocalCache\\local-packages\\Python313\\site-packages\\PyInstaller\\hooks'
+4065 INFO: Processing standard module hook 'hook-pickle.py' from 'C:\\Users\\RC Strout\\AppData\\Local\\Packages\\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\\LocalCache\\local-packages\\Python313\\site-packages\\PyInstaller\\hooks'
+4733 INFO: Processing standard module hook 'hook-heapq.py' from 'C:\\Users\\RC Strout\\AppData\\Local\\Packages\\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\\LocalCache\\local-packages\\Python313\\site-packages\\PyInstaller\\hooks'
+5171 INFO: Caching module dependency graph...
+5196 INFO: Analyzing C:\Users\RC Strout\Code\Thermobath\scripts\run_gui.py
+5201 INFO: Processing standard module hook 'hook-PyQt5.py' from 'C:\\Users\\RC Strout\\AppData\\Local\\Packages\\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\\LocalCache\\local-packages\\Python313\\site-packages\\PyInstaller\\hooks'
+5970 INFO: Processing standard module hook 'hook-PyQt5.QtWidgets.py' from 'C:\\Users\\RC Strout\\AppData\\Local\\Packages\\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\\LocalCache\\local-packages\\Python313\\site-packages\\PyInstaller\\hooks'
+9087 INFO: Processing standard module hook 'hook-PyQt5.QtCore.py' from 'C:\\Users\\RC Strout\\AppData\\Local\\Packages\\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\\LocalCache\\local-packages\\Python313\\site-packages\\PyInstaller\\hooks'
+12119 INFO: Processing standard module hook 'hook-PyQt5.QtGui.py' from 'C:\\Users\\RC Strout\\AppData\\Local\\Packages\\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\\LocalCache\\local-packages\\Python313\\site-packages\\PyInstaller\\hooks'
+28797 INFO: Processing standard module hook 'hook-sysconfig.py' from 'C:\\Users\\RC Strout\\AppData\\Local\\Packages\\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\\LocalCache\\local-packages\\Python313\\site-packages\\PyInstaller\\hooks'
+28811 INFO: Processing standard module hook 'hook-_ctypes.py' from 'C:\\Users\\RC Strout\\AppData\\Local\\Packages\\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\\LocalCache\\local-packages\\Python313\\site-packages\\PyInstaller\\hooks'
+29327 INFO: Processing module hooks (post-graph stage)...
+29329 WARNING: Hidden import "sip" not found!
+29359 INFO: Performing binary vs. data reclassification (98 entries)
+31585 INFO: Looking for ctypes DLLs
+31597 WARNING: Ignoring /System/Library/Frameworks/IOKit.framework/IOKit imported from C:\Users\RC Strout\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\serial\tools\list_ports_osx.py - only basenames are supported with ctypes imports!
+31597 WARNING: Ignoring /System/Library/Frameworks/CoreFoundation.framework/CoreFoundation imported from C:\Users\RC Strout\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\serial\tools\list_ports_osx.py - only basenames are supported with ctypes imports!
+31617 INFO: Analyzing run-time hooks ...
+31618 INFO: Including run-time hook 'pyi_rth_inspect.py' from 'C:\\Users\\RC Strout\\AppData\\Local\\Packages\\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\\LocalCache\\local-packages\\Python313\\site-packages\\PyInstaller\\hooks\\rthooks'
+31632 INFO: Including run-time hook 'pyi_rth_pyqt5.py' from 'C:\\Users\\RC Strout\\AppData\\Local\\Packages\\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\\LocalCache\\local-packages\\Python313\\site-packages\\PyInstaller\\hooks\\rthooks'
+31644 INFO: Processing pre-find-module-path hook 'hook-_pyi_rth_utils.py' from 'C:\\Users\\RC Strout\\AppData\\Local\\Packages\\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\\LocalCache\\local-packages\\Python313\\site-packages\\PyInstaller\\hooks\\pre_find_module_path'
+31663 INFO: Processing standard module hook 'hook-_pyi_rth_utils.py' from 'C:\\Users\\RC Strout\\AppData\\Local\\Packages\\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\\LocalCache\\local-packages\\Python313\\site-packages\\PyInstaller\\hooks'
+31689 INFO: Including run-time hook 'pyi_rth_pkgutil.py' from 'C:\\Users\\RC Strout\\AppData\\Local\\Packages\\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\\LocalCache\\local-packages\\Python313\\site-packages\\PyInstaller\\hooks\\rthooks'
+31703 INFO: Creating base_library.zip...
+31718 INFO: Looking for dynamic libraries
+31925 INFO: Extra DLL search directories (AddDllDirectory): ['C:\\Users\\RC Strout\\AppData\\Local\\Packages\\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\\LocalCache\\local-packages\\Python313\\site-packages\\PyQt5\\Qt5\\bin']
+31926 INFO: Extra DLL search directories (PATH): ['C:\\Users\\RC Strout\\AppData\\Local\\Packages\\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\\LocalCache\\local-packages\\Python313\\site-packages\\PyQt5\\Qt5\\bin']
+32463 INFO: Warnings written to C:\Users\RC Strout\Code\Thermobath\build\ThermobathController\warn-ThermobathController.txt
+32476 INFO: Graph cross-reference written to C:\Users\RC Strout\Code\Thermobath\build\ThermobathController\xref-ThermobathController.html
+32532 INFO: checking PYZ
+32533 INFO: Building PYZ because PYZ-00.toc is non existent
+32533 INFO: Building PYZ (ZlibArchive) C:\Users\RC Strout\Code\Thermobath\build\ThermobathController\PYZ-00.pyz
+32682 INFO: Building PYZ (ZlibArchive) C:\Users\RC Strout\Code\Thermobath\build\ThermobathController\PYZ-00.pyz completed successfully.
+32690 INFO: checking PKG
+32691 INFO: Building PKG because PKG-00.toc is non existent
+32691 INFO: Building PKG (CArchive) ThermobathController.pkg
+41468 INFO: Building PKG (CArchive) ThermobathController.pkg completed successfully.
+41472 INFO: Bootloader C:\Users\RC Strout\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\PyInstaller\bootloader\Windows-64bit-intel\runw.exe
+41472 INFO: checking EXE
+41473 INFO: Building EXE because EXE-00.toc is non existent
+41474 INFO: Building EXE from EXE-00.toc
+41476 INFO: Copying bootloader EXE to C:\Users\RC Strout\Code\Thermobath\dist\ThermobathController.exe
+41657 INFO: Copying icon to EXE
+41817 INFO: Copying 0 resources to EXE
+41817 INFO: Embedding manifest in EXE
+41966 INFO: Appending PKG archive to EXE
+42357 INFO: Fixing EXE headers
+48231 INFO: Building EXE from EXE-00.toc completed successfully.
+48234 INFO: Build complete! The results are available in: C:\Users\RC Strout\Code\Thermobath\dist
