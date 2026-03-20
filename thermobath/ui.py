@@ -460,6 +460,7 @@ class BathWorker(QThread):
     update_gauge = pyqtSignal(float, float)
     update_temps = pyqtSignal(float, float)  # For separate temperature display widgets
     comm_status = pyqtSignal(str, bool)
+    run_state_changed = pyqtSignal(str)
     finished = pyqtSignal()
 
     def __init__(
@@ -570,19 +571,23 @@ class BathWorker(QThread):
                 status_display = self._to_display_temp(status)
                 target_display = self._to_display_temp(target_c)
                 self.update_status.emit(f"Current temp: {status_display:.2f} °{self.temp_unit}")
+                self.run_state_changed.emit("Running")
                 self.update_gauge.emit(status_display, target_display)
             elif status == "dose":
+                self.run_state_changed.emit("Waiting for Dose")
                 # Show dose prompt dialog with countdown timer
                 dialog = DosePromptDialog(self.parent_widget, timeout_seconds=900)
                 result = dialog.exec_()
                 if not dialog.is_confirmed():
                     # Timeout occurred - pause the run
                     self.update_status.emit("Dose timeout - pausing run. Click Resume to continue.")
+                    self.run_state_changed.emit("Paused")
                     self.pause()
                     while self.check_pressure_pause():
                         time.sleep(0.5)
                 else:
                     self.update_status.emit("Dosed. Continuing...")
+                    self.run_state_changed.emit("Running")
         try:
             if self.routine == "Constant":
                 error_msg = thermobath_core.set_constant_temperature(bath, self.params['set_temp'])
@@ -609,21 +614,26 @@ class BathWorker(QThread):
                         status_display = self._to_display_temp(status)
                         target_display = self._to_display_temp(target_c)
                         self.update_status.emit(f"Current temp: {status_display:.2f} °{self.temp_unit}")
+                        self.run_state_changed.emit("Running")
                         self.update_gauge.emit(status_display, target_display)
                     elif status == "dose":
+                        self.run_state_changed.emit("Waiting for Dose")
                         # Show dose prompt dialog with countdown timer
                         dialog = DosePromptDialog(self.parent_widget, timeout_seconds=900)
                         result = dialog.exec_()
                         if not dialog.is_confirmed():
                             # Timeout occurred - pause the run
                             self.update_status.emit("Dose timeout - pausing run. Click Resume to continue.")
+                            self.run_state_changed.emit("Paused")
                             self.pause()
                             while self.check_pressure_pause():
                                 time.sleep(0.5)
                         else:
                             self.update_status.emit("Dosed. Continuing...")
+                            self.run_state_changed.emit("Running")
                     elif status == "pause_on_pressure":
                         self.update_status.emit("Paused due to over-pressure. Click Resume to continue.")
+                        self.run_state_changed.emit("Over-pressure Hold")
                         self.pause()
                         while self.check_pressure_pause():
                             time.sleep(0.5)
@@ -656,25 +666,32 @@ class BathWorker(QThread):
                         status_display = self._to_display_temp(status)
                         target_display = self._to_display_temp(target_c)
                         self.update_status.emit(f"Current temp: {status_display:.2f} °{self.temp_unit}")
+                        self.run_state_changed.emit("Running")
                         self.update_gauge.emit(status_display, target_display)
                     elif status == "dose":
+                        self.run_state_changed.emit("Waiting for Dose")
                         dialog = DosePromptDialog(self.parent_widget, timeout_seconds=900)
                         result = dialog.exec_()
                         if not dialog.is_confirmed():
                             self.update_status.emit("Dose timeout - pausing run. Click Resume to continue.")
+                            self.run_state_changed.emit("Paused")
                             self.pause()
                             while self.check_pressure_pause():
                                 time.sleep(0.5)
                         else:
                             self.update_status.emit("Dosed. Continuing...")
+                            self.run_state_changed.emit("Running")
                     elif status == "pause_on_pressure":
                         self.update_status.emit("Paused due to dP/dt threshold. Click Resume to continue.")
+                        self.run_state_changed.emit("dP/dt Plateau Hold")
                         self.pause()
                         while self.check_pressure_pause():
                             time.sleep(0.5)
                     elif isinstance(status, dict) and 'target' in status:
                         target_c = status['target']
                         self._active_target_c = target_c
+                        if status.get('plateau'):
+                            self.run_state_changed.emit("dP/dt Plateau Hold")
 
                 thermobath_core.smart_dynamic_profile(
                     bath,
@@ -694,8 +711,10 @@ class BathWorker(QThread):
         except Exception as e:
             if str(e) == "Stopped":
                 self.update_status.emit("Stopped by user.")
+                self.run_state_changed.emit("Stopped")
             else:
                 self.update_status.emit(f"Routine failed: {e}")
+                self.run_state_changed.emit("Error")
                 self.comm_status.emit(f"Communication error: {e}", False)
         bath.close()
         self._bath = None
@@ -1000,6 +1019,7 @@ class ThermobathUI(QWidget):
         self._log_timer = None
         self._last_temp = None
         self._last_pressure_values = []
+        self._current_run_state = "Idle"
 
         # Connect the view pressure button
         self.view_pressure_button.clicked.connect(self.show_pressure_dialog)
@@ -1183,6 +1203,7 @@ class ThermobathUI(QWidget):
             label = cfg.get("label", f"Ch {i+1}")
             eu = cfg.get("eu_label", "EU")
             headers.append(f"{label} ({eu})")
+        headers.append("Run State")
         try:
             self._data_logger = thermobath_core.CsvDataLogger(path, headers)
         except Exception as e:
@@ -1220,12 +1241,15 @@ class ThermobathUI(QWidget):
         pressure_strs = [f"{v:.4f}" if v is not None else "" for v in self._last_pressure_values]
         while len(pressure_strs) < 4:
             pressure_strs.append("")
-        row = [ts, temp_str] + pressure_strs[:4]
+        row = [ts, temp_str] + pressure_strs[:4] + [self._current_run_state]
         try:
             self._data_logger.write_row(row)
             self.log_rows_label.setText(f"Logging — {self._data_logger.row_count} rows")
         except Exception as e:
             self.log_rows_label.setText(f"Log error: {e}")
+
+    def set_run_state(self, state):
+        self._current_run_state = str(state) if state else "Idle"
 
     def start_pressure_monitor(self):
         if self.monitor_thread and self.monitor_thread.isRunning():
@@ -1548,11 +1572,13 @@ class ThermobathUI(QWidget):
         )
         self.worker.comm_status.connect(self.update_comm_status)
         self.worker.update_status.connect(self.status_label.setText)
+        self.worker.run_state_changed.connect(self.set_run_state)
         self.worker.update_gauge.connect(self.gauge.set_temps)
         self.worker.update_gauge.connect(self.update_temp_labels)
         self.worker.update_gauge.connect(self._update_last_temp)
         self.worker.finished.connect(self.on_worker_finished)
         self.worker.start()
+        self.set_run_state(f"Running ({routine})")
         self.paused = False
         self.pause_button.setText("Pause")
 
@@ -1578,6 +1604,7 @@ class ThermobathUI(QWidget):
     def on_worker_finished(self):
         self.status_label.setText("Status: Done")
         self.worker = None
+        self.set_run_state("Idle")
         self.paused = False
         self.pause_button.setText("Pause")
 
