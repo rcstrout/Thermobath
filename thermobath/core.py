@@ -9,6 +9,7 @@ import os
 import csv
 import re
 import threading
+from collections import deque
 from pathlib import Path
 import sys
 try:
@@ -139,6 +140,67 @@ class ChannelEngineeringPressureSource(PressureSource):
         if not cfg:
             return raw
         return self._scale_value(raw, cfg)
+
+
+class PressureRateMonitor:
+    """Track pressure history and compute dP/dt per channel over a time window."""
+
+    def __init__(self, window_size):
+        self.window_size = max(0.0, float(window_size))
+        self._channel_windows = []
+
+    def _trim_old(self, now_ts):
+        cutoff = now_ts - self.window_size
+        for window in self._channel_windows:
+            while window and window[0][0] < cutoff:
+                window.popleft()
+
+    def update(self, pressures):
+        """Add a new timestamped pressure sample list and trim stale samples."""
+        now_ts = time.time()
+        pressure_values = list(pressures) if pressures is not None else []
+
+        while len(self._channel_windows) < len(pressure_values):
+            self._channel_windows.append(deque())
+
+        for idx, value in enumerate(pressure_values):
+            if value is None:
+                continue
+            try:
+                numeric_value = float(value)
+            except (TypeError, ValueError):
+                continue
+            self._channel_windows[idx].append((now_ts, numeric_value))
+
+        self._trim_old(now_ts)
+
+    @staticmethod
+    def _slope(samples):
+        if len(samples) < 2:
+            return 0.0
+
+        n = float(len(samples))
+        sum_t = 0.0
+        sum_p = 0.0
+        sum_tt = 0.0
+        sum_tp = 0.0
+
+        for ts, pressure in samples:
+            sum_t += ts
+            sum_p += pressure
+            sum_tt += ts * ts
+            sum_tp += ts * pressure
+
+        denom = (n * sum_tt) - (sum_t * sum_t)
+        if abs(denom) < 1e-12:
+            return 0.0
+
+        return ((n * sum_tp) - (sum_t * sum_p)) / denom
+
+    def get_rates(self):
+        """Return pressure rate (units/second) for each tracked channel."""
+        self._trim_old(time.time())
+        return [self._slope(window) for window in self._channel_windows]
 
 
 class CsvDataLogger:
@@ -500,5 +562,140 @@ def stepwise_profile(
             over_pressure_behavior=over_pressure_behavior,
         )
         current_temp = next_temp
+
+
+def smart_dynamic_profile(
+    bath,
+    cloud_point,
+    min_temp,
+    initial_overheat=10,
+    callback=None,
+    pressure_reader=None,
+    pressure_channel=None,
+    dp_dt_threshold=0.01,
+    monitor_window=30.0,
+    cooling_step=0.1,
+    cooling_interval_s=30.0,
+    pressure_check_interval=1.0,
+):
+    """Run a smart dynamic profile with continuous cooling and dP/dt monitoring.
+
+    Flow:
+      1. Overheat and stabilize.
+      2. Request dose confirmation via callback("dose").
+      3. Ramp down to cloud point.
+      4. Continuously cool toward min_temp in small setpoint steps.
+      5. During cooling, compute per-channel pressure slope (dP/dt) over a
+         sliding window. If any channel exceeds `dp_dt_threshold`, pause cooling
+         and hold at the current setpoint until callback indicates resume.
+    """
+
+    pressure_source = ensure_pressure_source(pressure_reader)
+    if pressure_channel is None:
+        channels = []
+    elif isinstance(pressure_channel, (list, tuple)):
+        channels = list(pressure_channel)
+    else:
+        channels = [pressure_channel]
+
+    rate_monitor = PressureRateMonitor(window_size=monitor_window)
+    poll_s = max(0.2, float(pressure_check_interval))
+    cooling_step = abs(float(cooling_step))
+    cooling_interval_s = max(poll_s, float(cooling_interval_s))
+    threshold = float(dp_dt_threshold)
+
+    def _send_setpoint(temp_c):
+        cmd = f"SS {temp_c:.2f}\r".encode("utf-8")
+        bath.write(cmd)
+        bath.readline()
+
+    def _read_current_temp():
+        bath.write(b"RT\r")
+        response = bath.readline()
+        return _response_to_celsius(response, default_unit="F")
+
+    def _read_pressures():
+        if pressure_source is None or not channels:
+            return []
+        try:
+            pressures = pressure_source.read_channels(channels)
+        except Exception:
+            pressures = []
+            for ch in channels:
+                try:
+                    pressures.append(pressure_source.read_channel(ch))
+                except Exception:
+                    pressures.append(None)
+        if len(pressures) < len(channels):
+            pressures = list(pressures) + [None] * (len(channels) - len(pressures))
+        return list(pressures[: len(channels)])
+
+    def _emit_live_updates(target_temp):
+        try:
+            current_temp = _read_current_temp()
+            if callback:
+                callback(current_temp)
+        except Exception:
+            pass
+
+        if pressure_source is None or not channels:
+            return [], []
+
+        pressures = _read_pressures()
+        rate_monitor.update(pressures)
+        rates = rate_monitor.get_rates()
+        if callback:
+            callback({"target": target_temp, "pressure": pressures, "rates": rates})
+        return pressures, rates
+
+    overheat_temp = cloud_point + initial_overheat
+    set_constant_temperature(bath, overheat_temp)
+    wait_for_temperature(bath, overheat_temp, callback=callback)
+
+    if callback:
+        callback("dose")
+
+    ramp_temperature(
+        bath,
+        overheat_temp,
+        cloud_point,
+        rate_c_per_hr=5,
+        callback=callback,
+    )
+
+    current_target = float(cloud_point)
+    if callback:
+        callback({"target": current_target})
+
+    while current_target > min_temp:
+        next_target = max(current_target - cooling_step, float(min_temp))
+        _send_setpoint(next_target)
+        current_target = next_target
+        if callback:
+            callback({"target": current_target})
+
+        end_slice = time.time() + cooling_interval_s
+        while time.time() < end_slice:
+            _, rates = _emit_live_updates(current_target)
+            if rates and any(rate > threshold for rate in rates):
+                # Freeze at the current setpoint until the caller resumes.
+                _send_setpoint(current_target)
+                pause_result = None
+                if callback:
+                    pause_result = callback("pause_on_pressure")
+                    callback({"target": current_target, "plateau": True, "rates": rates})
+
+                # If callback requests explicit hold-loop control, remain in hold
+                # until callback returns "resume". Otherwise assume callback
+                # already handled pause/resume (existing UI behavior).
+                if pause_result == "hold":
+                    while True:
+                        _emit_live_updates(current_target)
+                        resume = callback("holding_on_dpdt") if callback else None
+                        if resume == "resume":
+                            break
+                        time.sleep(poll_s)
+
+            time.sleep(poll_s)
 
 # Add more routines as needed for future expansion (e.g., pressure-based stop)

@@ -647,6 +647,50 @@ class BathWorker(QThread):
                 self.update_status.emit("Stepwise profile complete.")
                 min_display = self._to_display_temp(self.params['min_temp'])
                 self.update_gauge.emit(min_display, min_display)
+            elif self.routine == "Smart Dynamic":
+                def smart_dynamic_callback(status=None):
+                    if self.check_pause_stop():
+                        raise Exception("Stopped")
+                    nonlocal target_c
+                    if isinstance(status, (float, int)):
+                        status_display = self._to_display_temp(status)
+                        target_display = self._to_display_temp(target_c)
+                        self.update_status.emit(f"Current temp: {status_display:.2f} °{self.temp_unit}")
+                        self.update_gauge.emit(status_display, target_display)
+                    elif status == "dose":
+                        dialog = DosePromptDialog(self.parent_widget, timeout_seconds=900)
+                        result = dialog.exec_()
+                        if not dialog.is_confirmed():
+                            self.update_status.emit("Dose timeout - pausing run. Click Resume to continue.")
+                            self.pause()
+                            while self.check_pressure_pause():
+                                time.sleep(0.5)
+                        else:
+                            self.update_status.emit("Dosed. Continuing...")
+                    elif status == "pause_on_pressure":
+                        self.update_status.emit("Paused due to dP/dt threshold. Click Resume to continue.")
+                        self.pause()
+                        while self.check_pressure_pause():
+                            time.sleep(0.5)
+                    elif isinstance(status, dict) and 'target' in status:
+                        target_c = status['target']
+                        self._active_target_c = target_c
+
+                thermobath_core.smart_dynamic_profile(
+                    bath,
+                    cloud_point=self.params['cloud_point'],
+                    min_temp=self.params['min_temp'],
+                    initial_overheat=self.params['initial_overheat'],
+                    callback=smart_dynamic_callback,
+                    pressure_reader=self.pressure_reader,
+                    pressure_channel=self.pressure_channels,
+                    dp_dt_threshold=self.params['dp_dt_threshold'],
+                    monitor_window=self.params['monitor_window'],
+                    pressure_check_interval=self.pressure_check_interval,
+                )
+                self.update_status.emit("Smart Dynamic profile complete.")
+                min_display = self._to_display_temp(self.params['min_temp'])
+                self.update_gauge.emit(min_display, min_display)
         except Exception as e:
             if str(e) == "Stopped":
                 self.update_status.emit("Stopped by user.")
@@ -705,6 +749,7 @@ class ThermobathUI(QWidget):
         self.routine_box.clear()
         self.routine_box.addItem(QIcon.fromTheme("media-playback-start"), "Constant")
         self.routine_box.addItem(QIcon.fromTheme("view-refresh"), "Stepwise")
+        self.routine_box.addItem(QIcon.fromTheme("view-statistics"), "Smart Dynamic")
         self.layout.addWidget(self.routine_box)
 
         ribbon_row = QHBoxLayout()
@@ -776,6 +821,22 @@ class ThermobathUI(QWidget):
         self.layout.addLayout(labeled_icon_row("Hold Time (min):", "clock", self.hold_time_input))
         self.layout.addLayout(labeled_icon_row("Minimum Temperature:", "thermometer", self.min_temp_input))
         self.layout.addLayout(labeled_icon_row("Initial Overheat:", "fire", self.initial_overheat_input))
+
+        self.dp_dt_threshold_input = QDoubleSpinBox()
+        self.dp_dt_threshold_input.setRange(0.0, 1e6)
+        self.dp_dt_threshold_input.setDecimals(6)
+        self.dp_dt_threshold_input.setSingleStep(0.001)
+        self.dp_dt_threshold_input.setValue(0.01)
+        self.dp_dt_threshold_input.setSuffix(" /s")
+        self.dp_dt_threshold_row = labeled_icon_row("dP/dt Threshold:", "view-statistics", self.dp_dt_threshold_input)
+        self.layout.addLayout(self.dp_dt_threshold_row)
+
+        self.monitor_window_input = QSpinBox()
+        self.monitor_window_input.setRange(1, 3600)
+        self.monitor_window_input.setValue(30)
+        self.monitor_window_input.setSuffix(" s")
+        self.monitor_window_row = labeled_icon_row("Rate Monitor Window:", "clock", self.monitor_window_input)
+        self.layout.addLayout(self.monitor_window_row)
 
         # DATAQ DAQ widgets
         self.daq_com_port_combo = QComboBox()
@@ -1264,12 +1325,24 @@ class ThermobathUI(QWidget):
     def update_fields(self):
         routine = self.routine_box.currentText()
         show_stepwise = routine == "Stepwise"
-        self.cloud_point_input.setVisible(show_stepwise)
+        show_smart_dynamic = routine == "Smart Dynamic"
+        show_profile_fields = show_stepwise or show_smart_dynamic
+
+        self.cloud_point_input.setVisible(show_profile_fields)
         self.step_size_input.setVisible(show_stepwise)
         self.hold_time_input.setVisible(show_stepwise)
-        self.min_temp_input.setVisible(show_stepwise)
-        self.initial_overheat_input.setVisible(show_stepwise)
-        self.constant_temp_input.setVisible(not show_stepwise)
+        self.min_temp_input.setVisible(show_profile_fields)
+        self.initial_overheat_input.setVisible(show_profile_fields)
+        self._set_layout_widgets_visible(self.dp_dt_threshold_row, show_smart_dynamic)
+        self._set_layout_widgets_visible(self.monitor_window_row, show_smart_dynamic)
+        self.constant_temp_input.setVisible(routine == "Constant")
+
+    def _set_layout_widgets_visible(self, layout, visible):
+        for i in range(layout.count()):
+            item = layout.itemAt(i)
+            widget = item.widget()
+            if widget is not None:
+                widget.setVisible(visible)
 
     def _temperature_spins(self):
         return [
@@ -1365,6 +1438,8 @@ class ThermobathUI(QWidget):
             self.engineering_config = loaded_engineering
         self.pressure_max_input.setValue(config.get("pressure_max", 1.0))
         self.over_pressure_behavior.setCurrentText(config.get("over_pressure_behavior", "Extend Hold"))
+        self.dp_dt_threshold_input.setValue(config.get("dp_dt_threshold", 0.01))
+        self.monitor_window_input.setValue(config.get("monitor_window", 30))
 
         autoscale = config.get("autoscale", True)
         self.autoscale_checkbox.setChecked(autoscale)
@@ -1384,6 +1459,8 @@ class ThermobathUI(QWidget):
             "engineering_channels": self.engineering_config,
             "pressure_max": self.pressure_max_input.value(),
             "over_pressure_behavior": self.over_pressure_behavior.currentText(),
+            "dp_dt_threshold": self.dp_dt_threshold_input.value(),
+            "monitor_window": self.monitor_window_input.value(),
             "autoscale": self.autoscale_checkbox.isChecked(),
             "plot_min": self.ymin_input.value(),
             "plot_max": self.ymax_input.value(),
@@ -1413,7 +1490,7 @@ class ThermobathUI(QWidget):
             # Do not overwrite current temp with target before RT polling starts.
             self.gauge.set_temps(self.gauge.current_temp, set_temp_display)
             self.update_temp_labels(self.gauge.current_temp, set_temp_display)
-        else:
+        elif routine == "Stepwise":
             cloud_display = self.cloud_point_input.value()
             step_size_display = self.step_size_input.value()
             min_display = self.min_temp_input.value()
@@ -1428,6 +1505,23 @@ class ThermobathUI(QWidget):
             }
             self.gauge.set_temps(self.gauge.current_temp, cloud_display + overheat_display)
             self.update_temp_labels(self.gauge.current_temp, cloud_display + overheat_display)
+        elif routine == "Smart Dynamic":
+            cloud_display = self.cloud_point_input.value()
+            min_display = self.min_temp_input.value()
+            overheat_display = self.initial_overheat_input.value()
+            factor = 5.0 / 9.0 if unit == "F" else 1.0
+            params = {
+                'cloud_point': f_to_c(cloud_display) if unit == "F" else cloud_display,
+                'min_temp': f_to_c(min_display) if unit == "F" else min_display,
+                'initial_overheat': overheat_display * factor,
+                'dp_dt_threshold': self.dp_dt_threshold_input.value(),
+                'monitor_window': self.monitor_window_input.value(),
+            }
+            self.gauge.set_temps(self.gauge.current_temp, cloud_display + overheat_display)
+            self.update_temp_labels(self.gauge.current_temp, cloud_display + overheat_display)
+        else:
+            self.status_label.setText(f"Status: Unknown routine '{routine}'.")
+            return
         self.status_label.setText("Status: Connecting...")
 
         pressure_reader = None
