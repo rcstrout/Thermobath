@@ -25,11 +25,13 @@ from PyQt5.QtWidgets import (
     QTableWidget,
     QTableWidgetItem,
     QHeaderView,
-    QScrollArea,
+    QListWidget,
+    QStackedWidget,
     QGridLayout,
     QSizePolicy,
     QDialog,
     QMessageBox,
+    QGroupBox,
 )
 
 from PyQt5.QtGui import QIcon, QPainter, QPen, QColor, QFont
@@ -730,23 +732,73 @@ class ThermobathUI(QWidget):
         self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         self.setStyleSheet(dark_stylesheet())
 
-        # Main container widget and layout
-        self.container = QWidget()
-        self.layout = QVBoxLayout(self.container)
-        self.layout.setSpacing(8)
-        self.layout.setContentsMargins(15, 15, 15, 15)
-        self.container.setLayout(self.layout)
-
-        # Scroll area
-        self.scroll = QScrollArea(self)
-        self.scroll.setWidgetResizable(True)
-        self.scroll.setWidget(self.container)
-
-        # Main layout for the window
-        main_layout = QVBoxLayout(self)
+        # Main split layout: sidebar on the left, stacked pages on the right.
+        main_layout = QHBoxLayout(self)
         main_layout.setContentsMargins(0, 0, 0, 0)
-        main_layout.addWidget(self.scroll)
+        main_layout.setSpacing(0)
         self.setLayout(main_layout)
+
+        self.sidebar_widget = QWidget()
+        self.sidebar_widget.setFixedWidth(180)
+        self.sidebar_widget.setStyleSheet(
+            "background-color: #1b1f24; border-right: 1px solid #30363d;"
+        )
+        sidebar_layout = QVBoxLayout(self.sidebar_widget)
+        sidebar_layout.setContentsMargins(10, 12, 10, 12)
+        sidebar_layout.setSpacing(8)
+
+        self.sidebar_list = QListWidget()
+        self.sidebar_list.addItems([
+            "Dashboard",
+            "Method Editor",
+            "Hardware",
+            "Data Logging",
+        ])
+        self.sidebar_list.setCurrentRow(0)
+        sidebar_layout.addWidget(self.sidebar_list)
+        sidebar_layout.addStretch(1)
+        main_layout.addWidget(self.sidebar_widget)
+
+        self.page_stack = QStackedWidget()
+        main_layout.addWidget(self.page_stack, 1)
+
+        self.dashboard_page = QWidget()
+        self.dashboard_layout = QVBoxLayout(self.dashboard_page)
+        self.dashboard_layout.setSpacing(8)
+        self.dashboard_layout.setContentsMargins(15, 15, 15, 15)
+
+        self.method_editor_page = QWidget()
+        self.method_editor_layout = QVBoxLayout(self.method_editor_page)
+
+        self.hardware_page = QWidget()
+        self.hardware_layout = QVBoxLayout(self.hardware_page)
+
+        self.data_logging_page = QWidget()
+        self.data_logging_layout = QVBoxLayout(self.data_logging_page)
+
+        self.page_stack.addWidget(self.dashboard_page)
+        self.page_stack.addWidget(self.method_editor_page)
+        self.page_stack.addWidget(self.hardware_page)
+        self.page_stack.addWidget(self.data_logging_page)
+
+        self.sidebar_list.currentRowChanged.connect(self.page_stack.setCurrentIndex)
+
+        # Dashboard: live operations view.
+        self.state_tracker_states = ["Idle", "Ramping", "Dosing", "Cooling", "Plateau"]
+        self.state_tracker_labels = {}
+        state_tracker_row = QHBoxLayout()
+        state_tracker_row.setSpacing(6)
+        for i, state_name in enumerate(self.state_tracker_states):
+            state_label = QLabel(state_name)
+            state_label.setStyleSheet("color: #6b7280; font-weight: bold;")
+            self.state_tracker_labels[state_name] = state_label
+            state_tracker_row.addWidget(state_label)
+            if i < len(self.state_tracker_states) - 1:
+                arrow = QLabel("→")
+                arrow.setStyleSheet("color: #4b5563;")
+                state_tracker_row.addWidget(arrow)
+        state_tracker_row.addStretch()
+        self.dashboard_layout.addLayout(state_tracker_row)
 
         # Temperature display at top
         temp_display_layout = QHBoxLayout()
@@ -757,61 +809,67 @@ class ThermobathUI(QWidget):
         temp_display_layout.addWidget(self.current_temp_label)
         temp_display_layout.addStretch()
         temp_display_layout.addWidget(self.target_temp_label)
-        self.layout.addLayout(temp_display_layout)
+        self.dashboard_layout.addLayout(temp_display_layout)
 
         # Thermostat gauge
         self.gauge = ThermostatGauge()
-        self.layout.addWidget(self.gauge, alignment=Qt.AlignCenter)
-        self.layout.addStretch(0)  # Minimal stretch after gauge
+        self.dashboard_layout.addWidget(self.gauge, alignment=Qt.AlignCenter)
+
+        self.pressure_plot = PressurePlot(channels=4)
+        self.pressure_plot.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        self.dashboard_layout.addWidget(self.pressure_plot, 1)
+
+        dashboard_bottom = QWidget()
+        dashboard_bottom_layout = QVBoxLayout(dashboard_bottom)
+        dashboard_bottom_layout.setContentsMargins(0, 0, 0, 0)
+        dashboard_bottom_layout.setSpacing(6)
+
+        self.status_label = QLabel("Status: Ready")
+        self.status_label.setStyleSheet("color: #8ec07c; font-weight: bold;")
+        dashboard_bottom_layout.addWidget(self.status_label)
+
+        btn_row = QHBoxLayout()
+        self.start_button = QPushButton("Start Routine")
+        self.start_button.setIcon(QIcon.fromTheme("media-playback-start"))
+        self.pause_button = QPushButton("Pause")
+        self.pause_button.setIcon(QIcon.fromTheme("media-playback-pause"))
+        self.stop_button = QPushButton("Stop")
+        self.stop_button.setIcon(QIcon.fromTheme("process-stop"))
+        self.start_button.setMinimumHeight(44)
+        self.pause_button.setMinimumHeight(44)
+        self.stop_button.setMinimumHeight(44)
+        btn_row.addWidget(self.start_button)
+        btn_row.addWidget(self.pause_button)
+        btn_row.addWidget(self.stop_button)
+        dashboard_bottom_layout.addLayout(btn_row)
+
+        self.dashboard_layout.addWidget(dashboard_bottom)
+
+        self.method_group = QGroupBox("Method Editor")
+        self.method_group.setStyleSheet(
+            "QGroupBox { border: 1px solid #3a3f4b; border-radius: 8px; margin-top: 10px; }"
+            "QGroupBox::title { subcontrol-origin: margin; left: 10px; padding: 0 6px; color: #83a598; }"
+        )
+        method_group_layout = QVBoxLayout(self.method_group)
+        method_group_layout.setContentsMargins(10, 16, 10, 10)
+        method_group_layout.setSpacing(8)
 
         self.routine_box = QComboBox()
         self.routine_box.clear()
         self.routine_box.addItem(QIcon.fromTheme("media-playback-start"), "Constant")
         self.routine_box.addItem(QIcon.fromTheme("view-refresh"), "Stepwise")
         self.routine_box.addItem(QIcon.fromTheme("view-statistics"), "Smart Dynamic")
-        self.layout.addWidget(self.routine_box)
-
-        ribbon_row = QHBoxLayout()
-        ribbon_row.addWidget(QLabel("Ribbon:"))
-        self.command_help_button = QPushButton("USB Commands")
-        self.engineering_button = QPushButton("Engineering Settings")
-        ribbon_row.addWidget(self.command_help_button)
-        ribbon_row.addWidget(self.engineering_button)
-        ribbon_row.addStretch()
-        self.layout.addLayout(ribbon_row)
-
-        # Port selection and status
-        comm_layout = QHBoxLayout()
-        self.port_combo = QComboBox()
-        self.refresh_ports_button = QPushButton("Refresh")
-        self.test_connection_button = QPushButton("Test Connection")
-        self.standby_button = QPushButton("Standby: Off")
-        self.comm_status_label = QLabel("Disconnected")
-        self.comm_status_label.setStyleSheet("color: #d65d0e;") # Orange
-
-        comm_layout.addWidget(QLabel("Chiller Port:"))
-        comm_layout.addWidget(self.port_combo)
-        comm_layout.addWidget(self.refresh_ports_button)
-        comm_layout.addWidget(self.test_connection_button)
-        comm_layout.addWidget(self.standby_button)
-        self.temp_unit_combo = QComboBox()
-        self.temp_unit_combo.addItems(["F", "C"])
-        comm_layout.addWidget(QLabel("Temp Units:"))
-        comm_layout.addWidget(self.temp_unit_combo)
-        comm_layout.addWidget(self.comm_status_label)
-        self.layout.addLayout(comm_layout)
-
-        self.transport_label = QLabel("Transport: USB serial (COM)")
-        self.transport_label.setStyleSheet("color: #83a598;")
-        self.layout.addWidget(self.transport_label)
-
+        self.routine_row = labeled_icon_row("Routine:", "view-list-text", self.routine_box)
+        method_group_layout.addLayout(self.routine_row)
+        self.method_editor_layout.addWidget(self.method_group)
 
         # Constant temp widgets
         self.constant_temp_input = QDoubleSpinBox()
         self.constant_temp_input.setRange(-58, 302)
         self.constant_temp_input.setSuffix(" °F")
         self.constant_temp_input.setValue(77.0)
-        self.layout.addLayout(labeled_icon_row("Setpoint Temperature:", "temperature", self.constant_temp_input))
+        self.constant_temp_row = labeled_icon_row("Setpoint Temperature:", "temperature", self.constant_temp_input)
+        method_group_layout.addLayout(self.constant_temp_row)
 
         # Stepwise widgets
         self.cloud_point_input = QDoubleSpinBox()
@@ -835,11 +893,16 @@ class ThermobathUI(QWidget):
         self.initial_overheat_input.setSuffix(" °F")
         self.initial_overheat_input.setValue(18.0)
 
-        self.layout.addLayout(labeled_icon_row("Cloud Point:", "cloud", self.cloud_point_input))
-        self.layout.addLayout(labeled_icon_row("Step Size:", "arrow-down", self.step_size_input))
-        self.layout.addLayout(labeled_icon_row("Hold Time (min):", "clock", self.hold_time_input))
-        self.layout.addLayout(labeled_icon_row("Minimum Temperature:", "thermometer", self.min_temp_input))
-        self.layout.addLayout(labeled_icon_row("Initial Overheat:", "fire", self.initial_overheat_input))
+        self.cloud_point_row = labeled_icon_row("Cloud Point:", "cloud", self.cloud_point_input)
+        self.step_size_row = labeled_icon_row("Step Size:", "arrow-down", self.step_size_input)
+        self.hold_time_row = labeled_icon_row("Hold Time (min):", "clock", self.hold_time_input)
+        self.min_temp_row = labeled_icon_row("Minimum Temperature:", "thermometer", self.min_temp_input)
+        self.initial_overheat_row = labeled_icon_row("Initial Overheat:", "fire", self.initial_overheat_input)
+        method_group_layout.addLayout(self.cloud_point_row)
+        method_group_layout.addLayout(self.step_size_row)
+        method_group_layout.addLayout(self.hold_time_row)
+        method_group_layout.addLayout(self.min_temp_row)
+        method_group_layout.addLayout(self.initial_overheat_row)
 
         self.dp_dt_threshold_input = QDoubleSpinBox()
         self.dp_dt_threshold_input.setRange(0.0, 1e6)
@@ -848,14 +911,57 @@ class ThermobathUI(QWidget):
         self.dp_dt_threshold_input.setValue(0.01)
         self.dp_dt_threshold_input.setSuffix(" /s")
         self.dp_dt_threshold_row = labeled_icon_row("dP/dt Threshold:", "view-statistics", self.dp_dt_threshold_input)
-        self.layout.addLayout(self.dp_dt_threshold_row)
+        method_group_layout.addLayout(self.dp_dt_threshold_row)
 
         self.monitor_window_input = QSpinBox()
         self.monitor_window_input.setRange(1, 3600)
         self.monitor_window_input.setValue(30)
         self.monitor_window_input.setSuffix(" s")
         self.monitor_window_row = labeled_icon_row("Rate Monitor Window:", "clock", self.monitor_window_input)
-        self.layout.addLayout(self.monitor_window_row)
+        method_group_layout.addLayout(self.monitor_window_row)
+
+        # Hardware page configuration groups.
+        hardware_ports_group = QGroupBox("Port Configuration")
+        hardware_ports_layout = QVBoxLayout(hardware_ports_group)
+
+        ribbon_row = QHBoxLayout()
+        ribbon_row.addWidget(QLabel("Tools:"))
+        self.command_help_button = QPushButton("USB Commands")
+        self.engineering_button = QPushButton("Engineering Settings")
+        ribbon_row.addWidget(self.command_help_button)
+        ribbon_row.addWidget(self.engineering_button)
+        ribbon_row.addStretch()
+        hardware_ports_layout.addLayout(ribbon_row)
+
+        # Port selection and status
+        comm_layout = QHBoxLayout()
+        self.port_combo = QComboBox()
+        self.refresh_ports_button = QPushButton("Refresh")
+        self.test_connection_button = QPushButton("Test Connection")
+        self.standby_button = QPushButton("Standby: Off")
+        self.comm_status_label = QLabel("Disconnected")
+        self.comm_status_label.setStyleSheet("color: #d65d0e;") # Orange
+
+        comm_layout.addWidget(QLabel("Chiller Port:"))
+        comm_layout.addWidget(self.port_combo)
+        comm_layout.addWidget(self.refresh_ports_button)
+        comm_layout.addWidget(self.test_connection_button)
+        comm_layout.addWidget(self.standby_button)
+        self.temp_unit_combo = QComboBox()
+        self.temp_unit_combo.addItems(["F", "C"])
+        comm_layout.addWidget(QLabel("Temp Units:"))
+        comm_layout.addWidget(self.temp_unit_combo)
+        comm_layout.addWidget(self.comm_status_label)
+        hardware_ports_layout.addLayout(comm_layout)
+
+        self.transport_label = QLabel("Transport: USB serial (COM)")
+        self.transport_label.setStyleSheet("color: #83a598;")
+        hardware_ports_layout.addWidget(self.transport_label)
+
+        self.hardware_layout.addWidget(hardware_ports_group)
+
+        hardware_daq_group = QGroupBox("DAQ Hardware")
+        hardware_daq_layout = QVBoxLayout(hardware_daq_group)
 
         # DATAQ DAQ widgets
         self.daq_com_port_combo = QComboBox()
@@ -865,7 +971,12 @@ class ThermobathUI(QWidget):
         daq_port_row.addWidget(QLabel("DAQ COM Port:"))
         daq_port_row.addWidget(self.daq_com_port_combo)
         daq_port_row.addWidget(self.refresh_daq_ports_button)
-        self.layout.addLayout(daq_port_row)
+        hardware_daq_layout.addLayout(daq_port_row)
+
+        self.hardware_layout.addWidget(hardware_daq_group)
+
+        hardware_safety_group = QGroupBox("Safety")
+        hardware_safety_layout = QVBoxLayout(hardware_safety_group)
 
         self.sample_rate_hz_input = QDoubleSpinBox()
         self.sample_rate_hz_input.setRange(0.1, 20.0)
@@ -873,28 +984,27 @@ class ThermobathUI(QWidget):
         self.sample_rate_hz_input.setSingleStep(0.1)
         self.sample_rate_hz_input.setValue(1.0)
         self.sample_rate_hz_input.setSuffix(" Hz")
-        self.layout.addLayout(labeled_icon_row("Logger sample rate:", "view-refresh", self.sample_rate_hz_input))
-
-        channel_layout = QVBoxLayout()
-        channel_layout.addWidget(QLabel("Pressure channels (0-based indices for DAQ):"))
-        self.channel_inputs = []
-        grid = QGridLayout()
-        for i in range(4):
-            grid.addWidget(QLabel(f"Ch {i+1}:"), i, 0)
-            self.channel_inputs.append(QLineEdit(str(i)))
-            grid.addWidget(self.channel_inputs[i], i, 1)
-        channel_layout.addLayout(grid)
-        self.layout.addLayout(channel_layout)
 
         self.pressure_max_input = QDoubleSpinBox()
         self.pressure_max_input.setRange(0, 1e6)
         self.pressure_max_input.setDecimals(3)
         self.pressure_max_input.setValue(1.0)
-        self.layout.addLayout(labeled_icon_row("Pressure max (unit):", "dialog-warning", self.pressure_max_input))
+        hardware_safety_layout.addLayout(
+            labeled_icon_row("Pressure max (unit):", "dialog-warning", self.pressure_max_input)
+        )
 
         self.over_pressure_behavior = QComboBox()
         self.over_pressure_behavior.addItems(["Extend Hold", "Pause", "Abort"])
-        self.layout.addLayout(labeled_icon_row("Over-pressure behavior:", "process-stop", self.over_pressure_behavior))
+        hardware_safety_layout.addLayout(
+            labeled_icon_row("Over-pressure behavior:", "process-stop", self.over_pressure_behavior)
+        )
+
+        self.hardware_layout.addWidget(hardware_safety_group)
+        self.hardware_layout.addStretch(1)
+
+        # Data logging page configuration groups.
+        data_logging_group = QGroupBox("Data Logging")
+        data_logging_group_layout = QVBoxLayout(data_logging_group)
 
         self.start_monitor_button = QPushButton("Start Pressure Monitor")
         self.stop_monitor_button = QPushButton("Stop Pressure Monitor")
@@ -902,19 +1012,13 @@ class ThermobathUI(QWidget):
         monitor_row = QHBoxLayout()
         monitor_row.addWidget(self.start_monitor_button)
         monitor_row.addWidget(self.stop_monitor_button)
-        self.layout.addLayout(monitor_row)
-
-        self.pressure_plot = PressurePlot(channels=4)
-        self.layout.addWidget(self.pressure_plot)
-        self.layout.addStretch(0)  # Minimal stretch after plot
+        data_logging_group_layout.addLayout(monitor_row)
 
         # Pressure monitor controls (replaces the table)
         self.view_pressure_button = QPushButton("View Pressure Data")
         self.view_pressure_button.setIcon(QIcon.fromTheme("view-list-details"))
-        self.layout.addWidget(self.view_pressure_button)
+        data_logging_group_layout.addWidget(self.view_pressure_button)
 
-        # ── Data Logging ──
-        self.layout.addWidget(QLabel("── Data Logging ──"))
         log_file_row = QHBoxLayout()
         log_file_row.addWidget(QLabel("Log output file:"))
         self.log_file_input = QLineEdit()
@@ -922,7 +1026,7 @@ class ThermobathUI(QWidget):
         self.log_browse_button = QPushButton("Browse...")
         log_file_row.addWidget(self.log_file_input)
         log_file_row.addWidget(self.log_browse_button)
-        self.layout.addLayout(log_file_row)
+        data_logging_group_layout.addLayout(log_file_row)
 
         log_ctrl_row = QHBoxLayout()
         self.start_log_button = QPushButton("Start Logging")
@@ -933,11 +1037,31 @@ class ThermobathUI(QWidget):
         log_ctrl_row.addWidget(self.start_log_button)
         log_ctrl_row.addWidget(self.stop_log_button)
         log_ctrl_row.addWidget(self.log_rows_label)
-        self.layout.addLayout(log_ctrl_row)
+        data_logging_group_layout.addLayout(log_ctrl_row)
+
+        data_logging_group_layout.addLayout(
+            labeled_icon_row("Logger sample rate:", "view-refresh", self.sample_rate_hz_input)
+        )
+
+        channel_layout = QVBoxLayout()
+        channel_layout.addWidget(QLabel("Pressure channels (0-based indices for DAQ):"))
+        self.channel_inputs = []
+        grid = QGridLayout()
+        for i in range(4):
+            grid.addWidget(QLabel(f"Ch {i+1}:"), i, 0)
+            self.channel_inputs.append(QLineEdit(str(i)))
+            grid.addWidget(self.channel_inputs[i], i, 1)
+        channel_layout.addLayout(grid)
+        data_logging_group_layout.addLayout(channel_layout)
+
+        self.data_logging_layout.addWidget(data_logging_group)
 
         self.log_browse_button.clicked.connect(self.browse_log_output)
         self.start_log_button.clicked.connect(self.start_logging)
         self.stop_log_button.clicked.connect(self.stop_logging)
+
+        plot_scale_group = QGroupBox("Plot Scale")
+        plot_scale_layout = QVBoxLayout(plot_scale_group)
 
         # Plot scaling controls
         self.autoscale_checkbox = QCheckBox("Autoscale plot")
@@ -959,10 +1083,12 @@ class ThermobathUI(QWidget):
         scale_row.addWidget(self.ymin_input)
         scale_row.addWidget(QLabel("Y max:"))
         scale_row.addWidget(self.ymax_input)
-        self.layout.addLayout(scale_row)
+        plot_scale_layout.addLayout(scale_row)
 
         self.reset_scale_button = QPushButton("Reset Scale")
-        self.layout.addWidget(self.reset_scale_button)
+        plot_scale_layout.addWidget(self.reset_scale_button)
+        self.data_logging_layout.addWidget(plot_scale_group)
+        self.data_logging_layout.addStretch(1)
 
         # Config save/load
         self.save_config_button = QPushButton("Save Config")
@@ -970,7 +1096,8 @@ class ThermobathUI(QWidget):
         config_row = QHBoxLayout()
         config_row.addWidget(self.save_config_button)
         config_row.addWidget(self.load_config_button)
-        self.layout.addLayout(config_row)
+        self.method_editor_layout.addStretch(1)
+        self.method_editor_layout.addLayout(config_row)
 
         self.start_monitor_button.clicked.connect(self.start_pressure_monitor)
         self.stop_monitor_button.clicked.connect(self.stop_pressure_monitor)
@@ -982,24 +1109,6 @@ class ThermobathUI(QWidget):
         self.reset_scale_button.clicked.connect(self.reset_plot_scale)
         self.save_config_button.clicked.connect(self.save_config)
         self.load_config_button.clicked.connect(self.load_config)
-
-        # Control buttons
-        btn_row = QHBoxLayout()
-        self.start_button = QPushButton("Start Routine")
-        self.start_button.setIcon(QIcon.fromTheme("media-playback-start"))
-        self.pause_button = QPushButton("Pause")
-        self.pause_button.setIcon(QIcon.fromTheme("media-playback-pause"))
-        self.stop_button = QPushButton("Stop")
-        self.stop_button.setIcon(QIcon.fromTheme("process-stop"))
-        btn_row.addWidget(self.start_button)
-        btn_row.addWidget(self.pause_button)
-        btn_row.addWidget(self.stop_button)
-        self.layout.addLayout(btn_row)
-
-        self.status_label = QLabel("Status: Ready")
-        self.status_label.setStyleSheet("color: #8ec07c; font-weight: bold;")
-        self.layout.addWidget(self.status_label)
-        self.layout.addStretch(0)  # Minimal final stretch
 
         self.start_button.clicked.connect(self.start_routine)
         self.pause_button.clicked.connect(self.pause_resume_routine)
@@ -1020,6 +1129,7 @@ class ThermobathUI(QWidget):
         self._last_temp = None
         self._last_pressure_values = []
         self._current_run_state = "Idle"
+        self.set_run_state("Idle")
 
         # Connect the view pressure button
         self.view_pressure_button.clicked.connect(self.show_pressure_dialog)
@@ -1249,7 +1359,28 @@ class ThermobathUI(QWidget):
             self.log_rows_label.setText(f"Log error: {e}")
 
     def set_run_state(self, state):
-        self._current_run_state = str(state) if state else "Idle"
+        normalized_state = str(state).strip() if state else "Idle"
+        self._current_run_state = normalized_state
+
+        lower_state = normalized_state.lower()
+        if "dose" in lower_state:
+            tracker_state = "Dosing"
+        elif "plateau" in lower_state or "hold" in lower_state:
+            tracker_state = "Plateau"
+        elif lower_state == "running":
+            tracker_state = "Ramping"
+        elif lower_state == "paused":
+            tracker_state = "Cooling"
+        elif lower_state in {"stopped", "error", "idle"}:
+            tracker_state = "Idle"
+        else:
+            tracker_state = "Idle"
+
+        for state_name, label in self.state_tracker_labels.items():
+            if state_name == tracker_state:
+                label.setStyleSheet("color: #00dc78; font-weight: bold;")
+            else:
+                label.setStyleSheet("color: #6b7280; font-weight: bold;")
 
     def start_pressure_monitor(self):
         if self.monitor_thread and self.monitor_thread.isRunning():
@@ -1352,14 +1483,14 @@ class ThermobathUI(QWidget):
         show_smart_dynamic = routine == "Smart Dynamic"
         show_profile_fields = show_stepwise or show_smart_dynamic
 
-        self.cloud_point_input.setVisible(show_profile_fields)
-        self.step_size_input.setVisible(show_stepwise)
-        self.hold_time_input.setVisible(show_stepwise)
-        self.min_temp_input.setVisible(show_profile_fields)
-        self.initial_overheat_input.setVisible(show_profile_fields)
+        self._set_layout_widgets_visible(self.constant_temp_row, routine == "Constant")
+        self._set_layout_widgets_visible(self.cloud_point_row, show_profile_fields)
+        self._set_layout_widgets_visible(self.step_size_row, show_stepwise)
+        self._set_layout_widgets_visible(self.hold_time_row, show_stepwise)
+        self._set_layout_widgets_visible(self.min_temp_row, show_profile_fields)
+        self._set_layout_widgets_visible(self.initial_overheat_row, show_profile_fields)
         self._set_layout_widgets_visible(self.dp_dt_threshold_row, show_smart_dynamic)
         self._set_layout_widgets_visible(self.monitor_window_row, show_smart_dynamic)
-        self.constant_temp_input.setVisible(routine == "Constant")
 
     def _set_layout_widgets_visible(self, layout, visible):
         for i in range(layout.count()):

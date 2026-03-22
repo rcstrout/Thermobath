@@ -108,34 +108,6 @@
    'C:\\Program '
    'Files\\WindowsApps\\PythonSoftwareFoundation.Python.3.13_3.13.3312.0_x64__qbz5n2kfra8p0\\Lib\\ctypes\\wintypes.py',
    'PYMODULE'),
-  ('daqhats',
-   'C:\\Users\\RC '
-   'Strout\\AppData\\Local\\Packages\\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\\LocalCache\\local-packages\\Python313\\site-packages\\daqhats\\__init__.py',
-   'PYMODULE'),
-  ('daqhats.hats',
-   'C:\\Users\\RC '
-   'Strout\\AppData\\Local\\Packages\\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\\LocalCache\\local-packages\\Python313\\site-packages\\daqhats\\hats.py',
-   'PYMODULE'),
-  ('daqhats.mcc118',
-   'C:\\Users\\RC '
-   'Strout\\AppData\\Local\\Packages\\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\\LocalCache\\local-packages\\Python313\\site-packages\\daqhats\\mcc118.py',
-   'PYMODULE'),
-  ('daqhats.mcc128',
-   'C:\\Users\\RC '
-   'Strout\\AppData\\Local\\Packages\\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\\LocalCache\\local-packages\\Python313\\site-packages\\daqhats\\mcc128.py',
-   'PYMODULE'),
-  ('daqhats.mcc134',
-   'C:\\Users\\RC '
-   'Strout\\AppData\\Local\\Packages\\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\\LocalCache\\local-packages\\Python313\\site-packages\\daqhats\\mcc134.py',
-   'PYMODULE'),
-  ('daqhats.mcc152',
-   'C:\\Users\\RC '
-   'Strout\\AppData\\Local\\Packages\\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\\LocalCache\\local-packages\\Python313\\site-packages\\daqhats\\mcc152.py',
-   'PYMODULE'),
-  ('daqhats.mcc172',
-   'C:\\Users\\RC '
-   'Strout\\AppData\\Local\\Packages\\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\\LocalCache\\local-packages\\Python313\\site-packages\\daqhats\\mcc172.py',
-   'PYMODULE'),
   ('dataclasses',
    'C:\\Program '
    'Files\\WindowsApps\\PythonSoftwareFoundation.Python.3.13_3.13.3312.0_x64__qbz5n2kfra8p0\\Lib\\dataclasses.py',
