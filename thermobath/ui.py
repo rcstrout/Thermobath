@@ -25,16 +25,16 @@ from PyQt5.QtWidgets import (
     QTableWidget,
     QTableWidgetItem,
     QHeaderView,
-    QListWidget,
     QStackedWidget,
     QGridLayout,
     QSizePolicy,
     QDialog,
     QMessageBox,
     QGroupBox,
+    QFrame,
 )
 
-from PyQt5.QtGui import QIcon, QPainter, QPen, QColor, QFont
+from PyQt5.QtGui import QIcon, QPainter, QPen, QColor, QFont, QConicalGradient, QRadialGradient, QLinearGradient, QPainterPath
 from PyQt5.QtCore import Qt, QThread, pyqtSignal, QRectF, QMutex, QWaitCondition, QTimer, QPointF
 from . import core as thermobath_core
 from . import daq
@@ -77,7 +77,7 @@ class ThermostatGauge(QWidget):
         self.unit = "F"
         self.min_display_temp = -58.0
         self.max_display_temp = 302.0
-        self.setMinimumSize(100, 100)
+        self.setMinimumSize(300, 300)
         self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
 
     def set_unit(self, unit):
@@ -98,49 +98,193 @@ class ThermostatGauge(QWidget):
     def paintEvent(self, event):
         painter = QPainter(self)
         painter.setRenderHint(QPainter.Antialiasing)
+        painter.setRenderHint(QPainter.TextAntialiasing)
 
-        # Calculate dynamic sizes based on widget dimensions
         size = min(self.width(), self.height())
-        margin = size * 0.1  # 10% margin
-        rect = QRectF(margin, margin, size - 2*margin, size - 2*margin)
+        center_x = self.width() / 2.0
+        center_y = self.height() / 2.0
+        outer_radius = (size / 2.0) - 10
+        dial_rect = QRectF(
+            center_x - outer_radius,
+            center_y - outer_radius,
+            outer_radius * 2,
+            outer_radius * 2,
+        )
 
-        # Draw background
-        painter.setBrush(QColor(30, 30, 30))
+        span_degrees = 270.0
+        start_degrees = 135.0
+
+        def temp_ratio(value):
+            ratio = (value - self.min_display_temp) / (self.max_display_temp - self.min_display_temp)
+            return max(0.0, min(1.0, ratio))
+
+        target_ratio = temp_ratio(self.target_temp)
+        current_ratio = temp_ratio(self.current_temp)
+
+        def point_on_circle(radius, angle_degrees):
+            radians = math.radians(angle_degrees)
+            return QPointF(
+                center_x + math.cos(radians) * radius,
+                center_y + math.sin(radians) * radius,
+            )
+
+        bezel_gradient = QRadialGradient(dial_rect.center(), outer_radius)
+        bezel_gradient.setColorAt(0.0, QColor(82, 96, 112))
+        bezel_gradient.setColorAt(0.55, QColor(28, 38, 50))
+        bezel_gradient.setColorAt(1.0, QColor(6, 10, 15))
         painter.setPen(Qt.NoPen)
-        painter.drawEllipse(rect)
+        painter.setBrush(bezel_gradient)
+        painter.drawEllipse(dial_rect)
 
-        # Draw arc for target
-        pen_width = max(6, size // 40)  # Scale pen width with size
-        pen = QPen(QColor(100, 100, 255), pen_width)
-        painter.setPen(pen)
-        target_ratio = (self.target_temp - self.min_display_temp) / (self.max_display_temp - self.min_display_temp)
-        target_ratio = max(0.0, min(1.0, target_ratio))
-        span_angle = int(270 * 16 * target_ratio)
-        painter.drawArc(rect, 135 * 16, span_angle)
+        bezel_ring_pen = QPen(QColor(122, 142, 164, 110), max(2, int(size * 0.01)))
+        painter.setPen(bezel_ring_pen)
+        painter.setBrush(Qt.NoBrush)
+        painter.drawEllipse(dial_rect.adjusted(6, 6, -6, -6))
 
-        # Draw arc for current
-        pen = QPen(QColor(0, 220, 120), pen_width)
-        painter.setPen(pen)
-        current_ratio = (self.current_temp - self.min_display_temp) / (self.max_display_temp - self.min_display_temp)
-        current_ratio = max(0.0, min(1.0, current_ratio))
-        span_angle = int(270 * 16 * current_ratio)
-        painter.drawArc(rect, 135 * 16, span_angle)
+        inner_radius = outer_radius * 0.845
+        inner_rect = QRectF(
+            center_x - inner_radius,
+            center_y - inner_radius,
+            inner_radius * 2,
+            inner_radius * 2,
+        )
+        face_gradient = QRadialGradient(inner_rect.center(), inner_radius)
+        face_gradient.setColorAt(0.0, QColor(24, 34, 46, 245))
+        face_gradient.setColorAt(0.58, QColor(12, 20, 29, 240))
+        face_gradient.setColorAt(1.0, QColor(4, 9, 15, 248))
+        painter.setBrush(face_gradient)
+        painter.drawEllipse(inner_rect)
 
-        # Draw current temperature in center
-        font_size = max(12, size // 12)  # Scale font with size
-        painter.setPen(QColor(220, 220, 220))
-        font = QFont("Arial", font_size, QFont.Bold)
-        painter.setFont(font)
-        painter.drawText(rect, Qt.AlignCenter, f"{self.current_temp:.1f}°{self.unit}")
+        tick_radius = inner_radius * 0.90
+        painter.save()
+        painter.translate(inner_rect.center())
+        for tick_index in range(50):
+            angle = -135.0 + (span_degrees / 49.0) * tick_index
+            painter.save()
+            painter.rotate(angle)
+            tick_pen = QPen(QColor(186, 213, 232, 80 if tick_index % 5 else 155))
+            tick_pen.setWidthF(1.8 if tick_index % 5 else 3.2)
+            tick_pen.setCapStyle(Qt.RoundCap)
+            painter.setPen(tick_pen)
+            tick_start = QPointF(0, -tick_radius)
+            tick_end = QPointF(0, -(tick_radius - (18 if tick_index % 5 == 0 else 9)))
+            painter.drawLine(tick_start, tick_end)
+            painter.restore()
+        painter.restore()
 
-        # Draw target temperature below the center
-        small_font_size = max(8, size // 20)
-        painter.setFont(QFont("Arial", small_font_size))
-        target_y_offset = size * 0.25  # Position relative to size
-        target_rect = QRectF(rect.left(), rect.center().y() + target_y_offset,
-                           rect.width(), target_y_offset)
-        painter.drawText(target_rect, Qt.AlignHCenter | Qt.AlignTop,
-                        f"Target: {self.target_temp:.1f}°{self.unit}")
+        label_font = QFont("Segoe UI")
+        label_font.setPixelSize(max(10, int(size * 0.033)))
+        label_font.setWeight(QFont.Medium)
+        painter.setFont(label_font)
+        painter.setPen(QColor(122, 144, 164))
+        for label_ratio in [0.0, 0.25, 0.5, 0.75, 1.0]:
+            angle = start_degrees + (span_degrees * label_ratio)
+            label_temp = self.min_display_temp + ((self.max_display_temp - self.min_display_temp) * label_ratio)
+            label_point = point_on_circle(inner_radius * 0.72, angle)
+            label_rect = QRectF(label_point.x() - 26, label_point.y() - 10, 52, 20)
+            painter.drawText(label_rect, Qt.AlignCenter, f"{label_temp:.0f}")
+
+        track_radius = inner_radius * 0.71
+        track_rect = QRectF(
+            center_x - track_radius,
+            center_y - track_radius,
+            track_radius * 2,
+            track_radius * 2,
+        )
+        track_pen = QPen(QColor(110, 140, 165, 48), 15)
+        track_pen.setCapStyle(Qt.RoundCap)
+        painter.setPen(track_pen)
+        painter.setBrush(Qt.NoBrush)
+        painter.drawArc(track_rect, int(start_degrees * 16), int(-span_degrees * 16))
+
+        target_gradient = QConicalGradient(track_rect.center(), -135)
+        target_gradient.setColorAt(0.00, QColor(64, 240, 255, 30))
+        target_gradient.setColorAt(0.18, QColor(88, 232, 255, 255))
+        target_gradient.setColorAt(0.50, QColor(52, 175, 255, 255))
+        target_gradient.setColorAt(0.82, QColor(20, 72, 122, 90))
+        target_gradient.setColorAt(1.00, QColor(64, 240, 255, 30))
+
+        target_glow_pen = QPen(QColor(56, 232, 255, 70), 24)
+        target_glow_pen.setCapStyle(Qt.RoundCap)
+        painter.setPen(target_glow_pen)
+        painter.drawArc(track_rect, int(start_degrees * 16), int(-(span_degrees * target_ratio) * 16))
+
+        target_pen = QPen(target_gradient, 15)
+        target_pen.setCapStyle(Qt.RoundCap)
+        painter.setPen(target_pen)
+        painter.drawArc(track_rect, int(start_degrees * 16), int(-(span_degrees * target_ratio) * 16))
+
+        current_gradient = QConicalGradient(track_rect.center(), -135)
+        current_gradient.setColorAt(0.00, QColor(20, 255, 170, 30))
+        current_gradient.setColorAt(0.16, QColor(72, 255, 182, 255))
+        current_gradient.setColorAt(0.45, QColor(0, 232, 144, 255))
+        current_gradient.setColorAt(0.80, QColor(10, 84, 56, 100))
+        current_gradient.setColorAt(1.00, QColor(20, 255, 170, 30))
+
+        current_glow_pen = QPen(QColor(46, 255, 170, 80), 24)
+        current_glow_pen.setCapStyle(Qt.RoundCap)
+        painter.setPen(current_glow_pen)
+        painter.drawArc(track_rect, int(start_degrees * 16), int(-(span_degrees * current_ratio) * 16))
+
+        current_pen = QPen(current_gradient, 15)
+        current_pen.setCapStyle(Qt.RoundCap)
+        painter.setPen(current_pen)
+        painter.drawArc(track_rect, int(start_degrees * 16), int(-(span_degrees * current_ratio) * 16))
+
+        target_angle = start_degrees + (span_degrees * target_ratio)
+        target_outer = point_on_circle(track_radius + 16, target_angle)
+        target_inner = point_on_circle(track_radius + 1, target_angle)
+        target_bug_pen = QPen(QColor(116, 236, 255, 220), 3)
+        target_bug_pen.setCapStyle(Qt.RoundCap)
+        painter.setPen(target_bug_pen)
+        painter.drawLine(target_outer, target_inner)
+        painter.setBrush(QColor(116, 236, 255, 220))
+        painter.drawEllipse(target_outer, 4.0, 4.0)
+
+        current_angle = start_degrees + (span_degrees * current_ratio)
+        current_marker = point_on_circle(track_radius - 1, current_angle)
+        painter.setBrush(QColor(92, 255, 178, 220))
+        painter.setPen(QPen(QColor(92, 255, 178, 90), 6))
+        painter.drawEllipse(current_marker, 4.5, 4.5)
+
+        core_radius = inner_radius * 0.53
+        core_rect = QRectF(
+            center_x - core_radius,
+            center_y - core_radius,
+            core_radius * 2,
+            core_radius * 2,
+        )
+        core_gradient = QRadialGradient(core_rect.center(), core_radius)
+        core_gradient.setColorAt(0.0, QColor(29, 43, 56, 245))
+        core_gradient.setColorAt(0.75, QColor(12, 19, 27, 240))
+        core_gradient.setColorAt(1.0, QColor(5, 9, 14, 250))
+        painter.setPen(QPen(QColor(120, 155, 180, 45), 1))
+        painter.setBrush(core_gradient)
+        painter.drawEllipse(core_rect)
+
+        current_font = QFont("Segoe UI")
+        current_font.setPixelSize(max(38, int(size * 0.15)))
+        current_font.setWeight(QFont.Light)
+        painter.setFont(current_font)
+        painter.setPen(QColor(240, 248, 255))
+        current_text_rect = QRectF(core_rect.left(), core_rect.top() + size * 0.02, core_rect.width(), core_rect.height() * 0.48)
+        painter.drawText(current_text_rect, Qt.AlignCenter, f"{self.current_temp:.1f}°{self.unit}")
+
+        readout_font = QFont("Segoe UI")
+        readout_font.setPixelSize(max(14, int(size * 0.048)))
+        readout_font.setWeight(QFont.Medium)
+        painter.setFont(readout_font)
+        painter.setPen(QColor(126, 202, 216))
+        target_text_rect = QRectF(core_rect.left(), core_rect.center().y() + 4, core_rect.width(), core_rect.height() * 0.22)
+        painter.drawText(target_text_rect, Qt.AlignHCenter | Qt.AlignTop, f"TARGET {self.target_temp:.1f}°{self.unit}")
+
+        sub_font = QFont("Segoe UI")
+        sub_font.setPixelSize(max(11, int(size * 0.034)))
+        sub_font.setWeight(QFont.Normal)
+        painter.setFont(sub_font)
+        painter.setPen(QColor(110, 130, 150))
+        status_rect = QRectF(core_rect.left(), core_rect.bottom() - core_rect.height() * 0.18, core_rect.width(), core_rect.height() * 0.12)
+        painter.drawText(status_rect, Qt.AlignHCenter | Qt.AlignVCenter, "AEROSPACE SUPERVISORY DIAL")
 
 
 class PressureDataDialog(QDialog):
@@ -457,6 +601,382 @@ class PressurePlot(QWidget):
         painter.drawText(rect.left() + 4, rect.bottom() - 4, f"Min: {vmin:.3f}")
 
 
+class SparklineWidget(QWidget):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.samples = []
+        self.setMinimumHeight(32)
+        self.setMaximumHeight(40)
+        self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+
+    def set_samples(self, samples):
+        self.samples = list(samples)
+        self.update()
+
+    def paintEvent(self, event):
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.Antialiasing)
+        rect = self.rect().adjusted(2, 4, -2, -4)
+
+        if len(self.samples) < 2:
+            painter.setPen(QPen(QColor(90, 110, 126, 90), 1))
+            painter.drawLine(rect.left(), rect.center().y(), rect.right(), rect.center().y())
+            return
+
+        vmin = min(self.samples)
+        vmax = max(self.samples)
+        if vmax <= vmin:
+            vmax = vmin + 1.0
+
+        path = QPainterPath()
+        for index, sample in enumerate(self.samples):
+            x = rect.left() + (index / max(1, len(self.samples) - 1)) * rect.width()
+            y = rect.bottom() - ((sample - vmin) / (vmax - vmin)) * rect.height()
+            point = QPointF(x, y)
+            if index == 0:
+                path.moveTo(point)
+            else:
+                path.lineTo(point)
+
+        fill_path = QPainterPath(path)
+        fill_path.lineTo(rect.right(), rect.bottom())
+        fill_path.lineTo(rect.left(), rect.bottom())
+        fill_path.closeSubpath()
+
+        fill_gradient = QLinearGradient(rect.topLeft(), rect.bottomLeft())
+        fill_gradient.setColorAt(0.0, QColor(78, 222, 255, 70))
+        fill_gradient.setColorAt(1.0, QColor(78, 222, 255, 4))
+        painter.fillPath(fill_path, fill_gradient)
+
+        glow_pen = QPen(QColor(80, 228, 255, 55), 5)
+        glow_pen.setCapStyle(Qt.RoundCap)
+        glow_pen.setJoinStyle(Qt.RoundJoin)
+        painter.setPen(glow_pen)
+        painter.drawPath(path)
+
+        line_pen = QPen(QColor(112, 236, 255), 2)
+        line_pen.setCapStyle(Qt.RoundCap)
+        line_pen.setJoinStyle(Qt.RoundJoin)
+        painter.setPen(line_pen)
+        painter.drawPath(path)
+
+
+class KPICard(QWidget):
+    def __init__(self, title, parent=None):
+        super().__init__(parent)
+        self.setObjectName("kpiCard")
+        self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
+        self.setMinimumHeight(138)
+        self.history = []
+        self.history_len = 28
+        self._severity = "normal"
+
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(16, 14, 16, 14)
+        layout.setSpacing(5)
+
+        self.title_label = QLabel(title)
+        self.title_label.setStyleSheet("color: #8aa6bf; font-size: 13px; font-weight: 600; border: none;")
+
+        self.value_label = QLabel("-- EU")
+        self.value_label.setStyleSheet("color: #f5fbff; font-size: 24px; font-weight: 700; border: none;")
+
+        self.trend_label = QLabel("dP/dt: -- /s")
+        self.trend_label.setStyleSheet("color: #65d7b1; font-size: 12px; border: none;")
+
+        self.sparkline = SparklineWidget()
+
+        layout.addWidget(self.title_label)
+        layout.addWidget(self.value_label)
+        layout.addWidget(self.trend_label)
+        layout.addWidget(self.sparkline)
+        layout.addStretch(1)
+        self._apply_card_style("normal")
+
+    def set_title(self, title):
+        self.title_label.setText(title)
+
+    def _apply_card_style(self, severity):
+        styles = {
+            "normal": (
+                "rgba(18, 25, 33, 0.96)",
+                "rgba(92, 118, 142, 0.55)",
+                "rgba(85, 220, 198, 0.18)",
+            ),
+            "warning": (
+                "rgba(38, 28, 18, 0.96)",
+                "rgba(208, 133, 46, 0.8)",
+                "rgba(255, 173, 79, 0.22)",
+            ),
+            "alarm": (
+                "rgba(42, 18, 23, 0.97)",
+                "rgba(225, 93, 115, 0.9)",
+                "rgba(225, 93, 115, 0.25)",
+            ),
+        }
+        bg, border, glow = styles.get(severity, styles["normal"])
+        self.setStyleSheet(
+            "QWidget#kpiCard {"
+            f"background-color: {bg};"
+            f"border: 1px solid {border};"
+            "border-radius: 14px;"
+            f"selection-background-color: {glow};"
+            "}"
+        )
+        self._severity = severity
+
+    def update_metrics(self, value, unit="EU", rate=None, threshold=None):
+        if value is None:
+            self.value_label.setText(f"-- {unit}")
+        else:
+            self.value_label.setText(f"{value:.2f} {unit}")
+            self.history.append(value)
+            if len(self.history) > self.history_len:
+                self.history.pop(0)
+            self.sparkline.set_samples(self.history)
+
+        severity = "normal"
+        if threshold is not None and threshold > 0 and value is not None:
+            if value >= threshold:
+                severity = "alarm"
+            elif value >= threshold * 0.9:
+                severity = "warning"
+        self._apply_card_style(severity)
+
+        if rate is None:
+            self.trend_label.setText("-  dP/dt: -- /s")
+            self.trend_label.setStyleSheet("color: #7aa2c0; font-size: 12px; border: none;")
+        else:
+            if rate > 0.01:
+                trend_prefix = "↑"
+                trend_color = "#ffb067"
+            elif rate < -0.01:
+                trend_prefix = "↓"
+                trend_color = "#6fe0ff"
+            else:
+                trend_prefix = "→"
+                trend_color = "#65d7b1"
+            self.trend_label.setText(f"{trend_prefix}  dP/dt: {rate:+.4f} /s")
+            self.trend_label.setStyleSheet(
+                f"color: {trend_color}; font-size: 12px; border: none;"
+            )
+
+
+class ProfilePreviewWidget(QWidget):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.mode = "Stepwise"
+        self.constant_temp = 77.0
+        self.cloud_point = 50.0
+        self.step_size = 9.0
+        self.hold_time = 60.0
+        self.min_temp = 32.0
+        self.initial_overheat = 18.0
+        self.dp_dt_threshold = 0.01
+        self.monitor_window = 30.0
+        self.setMinimumSize(320, 260)
+        self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+
+    def set_profile_params(
+        self,
+        mode,
+        constant_temp,
+        cloud_point,
+        step_size,
+        hold_time,
+        min_temp,
+        initial_overheat,
+        dp_dt_threshold,
+        monitor_window,
+    ):
+        self.mode = mode
+        self.constant_temp = constant_temp
+        self.cloud_point = cloud_point
+        self.step_size = max(0.1, step_size)
+        self.hold_time = max(1.0, hold_time)
+        self.min_temp = min_temp
+        self.initial_overheat = max(0.0, initial_overheat)
+        self.dp_dt_threshold = max(0.0, dp_dt_threshold)
+        self.monitor_window = max(1.0, monitor_window)
+        self.update()
+
+    def _build_stepwise_profile(self):
+        start_temp = self.cloud_point
+        overheat_temp = self.cloud_point + self.initial_overheat
+        ramp_time = max(10.0, self.hold_time * 0.35)
+        settle_time = max(8.0, self.hold_time * 0.18)
+        drop_time = max(6.0, self.hold_time * 0.12)
+
+        profile_points = [(0.0, start_temp)]
+        current_time = ramp_time
+        profile_points.append((current_time, overheat_temp))
+        current_time += settle_time
+        profile_points.append((current_time, overheat_temp))
+        current_time += drop_time
+        current_temp = self.cloud_point
+        profile_points.append((current_time, current_temp))
+
+        plateaus = []
+        plateau_index = 1
+        while current_temp > self.min_temp:
+            plateau_start = current_time
+            current_time += self.hold_time
+            profile_points.append((current_time, current_temp))
+            plateaus.append((plateau_start, current_time, current_temp, f"P{plateau_index}"))
+            plateau_index += 1
+
+            next_temp = max(self.min_temp, current_temp - self.step_size)
+            current_time += max(4.0, self.hold_time * 0.08)
+            profile_points.append((current_time, next_temp))
+            current_temp = next_temp
+
+        if profile_points[-1][0] < current_time + self.hold_time * 0.5:
+            plateau_start = current_time
+            current_time += self.hold_time * 0.5
+            profile_points.append((current_time, current_temp))
+            plateaus.append((plateau_start, current_time, current_temp, f"P{plateau_index}"))
+
+        markers = [
+            (0.0, start_temp, "Start"),
+            (ramp_time, overheat_temp, "Overheat"),
+            (ramp_time + settle_time + drop_time, self.cloud_point, "Cloud Pt"),
+            (current_time, current_temp, "Min Temp"),
+        ]
+        return profile_points, plateaus, markers, QColor(92, 228, 255), "Stepwise Profile Preview"
+
+    def _build_constant_profile(self):
+        total_time = 120.0
+        points = [(0.0, self.constant_temp), (total_time, self.constant_temp)]
+        markers = [
+            (0.0, self.constant_temp, "Setpoint"),
+            (total_time, self.constant_temp, "Hold"),
+        ]
+        return points, [], markers, QColor(116, 255, 178), "Constant Hold Preview"
+
+    def _build_smart_dynamic_profile(self):
+        points, plateaus, markers, _color, _title = self._build_stepwise_profile()
+        dynamic_markers = list(markers)
+        dynamic_markers.append((points[min(len(points) - 1, 4)][0], points[min(len(points) - 1, 4)][1], "dP/dt Monitor"))
+        return points, plateaus, dynamic_markers, QColor(255, 186, 92), "Smart Dynamic Preview"
+
+    def paintEvent(self, event):
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.Antialiasing)
+        painter.setRenderHint(QPainter.TextAntialiasing)
+
+        rect = self.rect().adjusted(16, 16, -16, -16)
+        painter.fillRect(rect, QColor(16, 23, 31))
+
+        frame_pen = QPen(QColor(57, 74, 90), 1)
+        painter.setPen(frame_pen)
+        painter.drawRoundedRect(rect, 14, 14)
+
+        plot_rect = rect.adjusted(48, 18, -18, -42)
+        axis_pen = QPen(QColor(92, 113, 132), 1.5)
+        painter.setPen(axis_pen)
+        painter.drawLine(plot_rect.left(), plot_rect.bottom(), plot_rect.right(), plot_rect.bottom())
+        painter.drawLine(plot_rect.left(), plot_rect.top(), plot_rect.left(), plot_rect.bottom())
+
+        grid_pen = QPen(QColor(54, 70, 85), 1, Qt.DashLine)
+        painter.setPen(grid_pen)
+        for i in range(1, 4):
+            y = plot_rect.top() + (plot_rect.height() * i) / 4.0
+            painter.drawLine(plot_rect.left(), int(y), plot_rect.right(), int(y))
+        for i in range(1, 5):
+            x = plot_rect.left() + (plot_rect.width() * i) / 5.0
+            painter.drawLine(int(x), plot_rect.top(), int(x), plot_rect.bottom())
+
+        if self.mode == "Constant":
+            profile_points, plateaus, markers, accent_color, title = self._build_constant_profile()
+        elif self.mode == "Smart Dynamic":
+            profile_points, plateaus, markers, accent_color, title = self._build_smart_dynamic_profile()
+        else:
+            profile_points, plateaus, markers, accent_color, title = self._build_stepwise_profile()
+
+        max_time = max(point[0] for point in profile_points)
+        temps = [point[1] for point in profile_points]
+        temp_min = min(min(temps), self.min_temp) - 4.0
+        temp_max = max(max(temps), self.cloud_point + self.initial_overheat, self.constant_temp) + 4.0
+        if temp_max <= temp_min:
+            temp_max = temp_min + 1.0
+
+        def to_point(time_value, temp_value):
+            x = plot_rect.left() + (time_value / max(1.0, max_time)) * plot_rect.width()
+            y_ratio = (temp_value - temp_min) / (temp_max - temp_min)
+            y = plot_rect.bottom() - (y_ratio * plot_rect.height())
+            return QPointF(x, y)
+
+        mapped_points = [to_point(time_value, temp_value) for time_value, temp_value in profile_points]
+
+        if self.mode == "Smart Dynamic":
+            monitor_width = (self.monitor_window / max(1.0, max_time)) * plot_rect.width()
+            monitor_x = mapped_points[min(len(mapped_points) - 1, 3)].x()
+            monitor_rect = QRectF(monitor_x, plot_rect.top(), min(monitor_width, plot_rect.right() - monitor_x), plot_rect.height())
+            painter.fillRect(monitor_rect, QColor(255, 186, 92, 24))
+            painter.setPen(QPen(QColor(255, 186, 92, 110), 1, Qt.DashLine))
+            painter.drawRect(monitor_rect)
+
+        for plateau_start, plateau_end, plateau_temp, plateau_label in plateaus[:4]:
+            start_point = to_point(plateau_start, plateau_temp)
+            end_point = to_point(plateau_end, plateau_temp)
+            label_rect = QRectF(start_point.x(), start_point.y() - 20, max(40, end_point.x() - start_point.x()), 16)
+            painter.setPen(QColor(140, 163, 183))
+            painter.setFont(QFont("Segoe UI", 8))
+            painter.drawText(label_rect, Qt.AlignCenter, plateau_label)
+
+        glow_pen = QPen(QColor(accent_color.red(), accent_color.green(), accent_color.blue(), 70), 8)
+        glow_pen.setCapStyle(Qt.RoundCap)
+        glow_pen.setJoinStyle(Qt.RoundJoin)
+        painter.setPen(glow_pen)
+        for a, b in zip(mapped_points, mapped_points[1:]):
+            painter.drawLine(a, b)
+
+        profile_pen = QPen(accent_color, 3)
+        profile_pen.setCapStyle(Qt.RoundCap)
+        profile_pen.setJoinStyle(Qt.RoundJoin)
+        painter.setPen(profile_pen)
+        for a, b in zip(mapped_points, mapped_points[1:]):
+            painter.drawLine(a, b)
+
+        node_pen = QPen(QColor(180, 246, 255), 1)
+        painter.setPen(node_pen)
+        painter.setBrush(accent_color)
+        for point in mapped_points:
+            painter.drawEllipse(point, 3.5, 3.5)
+
+        marker_font = QFont("Segoe UI", 8)
+        painter.setFont(marker_font)
+        for time_value, temp_value, marker_text in markers:
+            point = to_point(time_value, temp_value)
+            painter.setPen(QPen(QColor(220, 235, 245), 1))
+            painter.setBrush(QColor(220, 235, 245))
+            painter.drawEllipse(point, 3.0, 3.0)
+            text_rect = QRectF(point.x() - 42, point.y() - 26, 84, 16)
+            painter.setPen(QColor(176, 198, 218))
+            painter.drawText(text_rect, Qt.AlignCenter, marker_text)
+
+        label_font = QFont("Segoe UI", 9)
+        painter.setFont(label_font)
+        painter.setPen(QColor(150, 171, 191))
+        painter.drawText(rect.adjusted(12, 6, -12, -6), Qt.AlignTop | Qt.AlignLeft, title)
+        painter.drawText(plot_rect.left() - 30, plot_rect.top() + 6, f"{temp_max:.0f}")
+        painter.drawText(plot_rect.left() - 30, plot_rect.bottom(), f"{temp_min:.0f}")
+        painter.drawText(plot_rect.right() - 40, plot_rect.bottom() + 24, f"{max_time:.0f}m")
+        painter.drawText(plot_rect.left(), plot_rect.bottom() + 24, "0m")
+        painter.drawText(plot_rect.left() - 10, rect.top() + 22, "Temp")
+        painter.drawText(plot_rect.right() - 28, rect.bottom() - 12, "Time")
+
+        info_rect = QRectF(rect.left() + 12, rect.bottom() - 28, rect.width() - 24, 18)
+        painter.setPen(QColor(114, 135, 156))
+        if self.mode == "Smart Dynamic":
+            info_text = f"dP/dt threshold {self.dp_dt_threshold:.4f}/s | monitor {self.monitor_window:.0f}s"
+        elif self.mode == "Constant":
+            info_text = f"Setpoint hold at {self.constant_temp:.1f}"
+        else:
+            info_text = f"Step {self.step_size:.1f} every {self.hold_time:.0f} min"
+        painter.drawText(info_rect, Qt.AlignRight | Qt.AlignVCenter, info_text)
+
+
 class BathWorker(QThread):
     update_status = pyqtSignal(str)
     update_gauge = pyqtSignal(float, float)
@@ -738,24 +1258,40 @@ class ThermobathUI(QWidget):
         main_layout.setSpacing(0)
         self.setLayout(main_layout)
 
-        self.sidebar_widget = QWidget()
-        self.sidebar_widget.setFixedWidth(180)
-        self.sidebar_widget.setStyleSheet(
-            "background-color: #1b1f24; border-right: 1px solid #30363d;"
-        )
+        self.sidebar_widget = QFrame()
+        self.sidebar_widget.setObjectName("sidebarPanel")
+        self.sidebar_widget.setFixedWidth(250)
+        self.sidebar_widget.setFrameShape(QFrame.NoFrame)
         sidebar_layout = QVBoxLayout(self.sidebar_widget)
-        sidebar_layout.setContentsMargins(10, 12, 10, 12)
-        sidebar_layout.setSpacing(8)
+        sidebar_layout.setContentsMargins(18, 22, 18, 22)
+        sidebar_layout.setSpacing(12)
 
-        self.sidebar_list = QListWidget()
-        self.sidebar_list.addItems([
+        sidebar_brand = QWidget()
+        sidebar_brand_layout = QVBoxLayout(sidebar_brand)
+        sidebar_brand_layout.setContentsMargins(0, 0, 0, 0)
+        sidebar_brand_layout.setSpacing(2)
+        sidebar_title = QLabel("THERMOBATH")
+        sidebar_title.setObjectName("sidebarTitle")
+        sidebar_subtitle = QLabel("Control deck and data supervision")
+        sidebar_subtitle.setObjectName("sidebarSubtitle")
+        sidebar_brand_layout.addWidget(sidebar_title)
+        sidebar_brand_layout.addWidget(sidebar_subtitle)
+        sidebar_layout.addWidget(sidebar_brand)
+
+        self.sidebar_buttons = []
+        for index, label in enumerate([
             "Dashboard",
             "Method Editor",
             "Hardware",
             "Data Logging",
-        ])
-        self.sidebar_list.setCurrentRow(0)
-        sidebar_layout.addWidget(self.sidebar_list)
+        ]):
+            button = QPushButton(label)
+            button.setObjectName("sidebarBtn")
+            button.setCheckable(True)
+            button.setMinimumHeight(56)
+            button.clicked.connect(lambda checked, page_index=index: self.set_active_page(page_index))
+            sidebar_layout.addWidget(button)
+            self.sidebar_buttons.append(button)
         sidebar_layout.addStretch(1)
         main_layout.addWidget(self.sidebar_widget)
 
@@ -764,28 +1300,75 @@ class ThermobathUI(QWidget):
 
         self.dashboard_page = QWidget()
         self.dashboard_layout = QVBoxLayout(self.dashboard_page)
-        self.dashboard_layout.setSpacing(8)
-        self.dashboard_layout.setContentsMargins(15, 15, 15, 15)
+        self.dashboard_layout.setSpacing(18)
+        self.dashboard_layout.setContentsMargins(22, 22, 22, 22)
+        self.dashboard_layout.addWidget(
+            self._create_page_header(
+                "Dashboard",
+                "Live temperature control, loop pressure telemetry, and routine state.",
+            )
+        )
 
         self.method_editor_page = QWidget()
         self.method_editor_layout = QVBoxLayout(self.method_editor_page)
+        self.method_editor_layout.setSpacing(18)
+        self.method_editor_layout.setContentsMargins(22, 22, 22, 22)
+        self.method_editor_layout.addWidget(
+            self._create_page_header(
+                "Method Editor",
+                "Build constant, stepwise, and smart dynamic temperature routines with live preview.",
+            )
+        )
+
+        self.method_editor_content = QHBoxLayout()
+        self.method_editor_content.setSpacing(18)
+        self.method_form_layout = QVBoxLayout()
+        self.method_form_layout.setSpacing(12)
+        self.method_editor_content.addLayout(self.method_form_layout, 3)
+
+        self.profile_preview = ProfilePreviewWidget()
+        self.method_editor_content.addWidget(self.profile_preview, 2)
+        self.method_editor_layout.addLayout(self.method_editor_content, 1)
 
         self.hardware_page = QWidget()
         self.hardware_layout = QVBoxLayout(self.hardware_page)
+        self.hardware_layout.setSpacing(18)
+        self.hardware_layout.setContentsMargins(22, 22, 22, 22)
+        self.hardware_layout.addWidget(
+            self._create_page_header(
+                "Hardware",
+                "Serial transport, DAQ connectivity, and safety interlocks for the bath and sensors.",
+            )
+        )
 
         self.data_logging_page = QWidget()
         self.data_logging_layout = QVBoxLayout(self.data_logging_page)
+        self.data_logging_layout.setSpacing(18)
+        self.data_logging_layout.setContentsMargins(22, 22, 22, 22)
+        self.data_logging_layout.addWidget(
+            self._create_page_header(
+                "Data Logging",
+                "Pressure monitoring, CSV capture, and plot scaling for runtime analysis.",
+            )
+        )
 
         self.page_stack.addWidget(self.dashboard_page)
         self.page_stack.addWidget(self.method_editor_page)
         self.page_stack.addWidget(self.hardware_page)
         self.page_stack.addWidget(self.data_logging_page)
 
-        self.sidebar_list.currentRowChanged.connect(self.page_stack.setCurrentIndex)
+        self.page_stack.currentChanged.connect(self.update_sidebar_state)
+        self.set_active_page(0)
 
         # Dashboard: live operations view.
         self.state_tracker_states = ["Idle", "Ramping", "Dosing", "Cooling", "Plateau"]
         self.state_tracker_labels = {}
+        dashboard_header_strip = QWidget()
+        dashboard_header_strip.setObjectName("glassPanel")
+        dashboard_header_layout = QVBoxLayout(dashboard_header_strip)
+        dashboard_header_layout.setContentsMargins(18, 16, 18, 16)
+        dashboard_header_layout.setSpacing(10)
+
         state_tracker_row = QHBoxLayout()
         state_tracker_row.setSpacing(6)
         for i, state_name in enumerate(self.state_tracker_states):
@@ -798,46 +1381,63 @@ class ThermobathUI(QWidget):
                 arrow.setStyleSheet("color: #4b5563;")
                 state_tracker_row.addWidget(arrow)
         state_tracker_row.addStretch()
-        self.dashboard_layout.addLayout(state_tracker_row)
+        dashboard_header_layout.addLayout(state_tracker_row)
 
         # Temperature display at top
         temp_display_layout = QHBoxLayout()
         self.current_temp_label = QLabel("Current: 77.00°F")
-        self.current_temp_label.setStyleSheet("color: #8ec07c; font-size: 14px; font-weight: bold;")
+        self.current_temp_label.setObjectName("telemetryReadout")
+        self.current_temp_label.setStyleSheet("color: #8ec07c;")
         self.target_temp_label = QLabel("Target: 77.00°F")
-        self.target_temp_label.setStyleSheet("color: #83a598; font-size: 14px; font-weight: bold;")
+        self.target_temp_label.setObjectName("telemetryReadout")
+        self.target_temp_label.setStyleSheet("color: #83a598;")
         temp_display_layout.addWidget(self.current_temp_label)
         temp_display_layout.addStretch()
         temp_display_layout.addWidget(self.target_temp_label)
-        self.dashboard_layout.addLayout(temp_display_layout)
+        dashboard_header_layout.addLayout(temp_display_layout)
+        self.dashboard_layout.addWidget(dashboard_header_strip)
 
         # Thermostat gauge
         self.gauge = ThermostatGauge()
         self.dashboard_layout.addWidget(self.gauge, alignment=Qt.AlignCenter)
+
+        kpi_row = QHBoxLayout()
+        kpi_row.setSpacing(12)
+        self.kpi_cards = []
+        for index in range(4):
+            card = KPICard(f"Loop {index + 1}")
+            self.kpi_cards.append(card)
+            kpi_row.addWidget(card, 1)
+        self.dashboard_layout.addLayout(kpi_row)
+        self._refresh_kpi_titles()
 
         self.pressure_plot = PressurePlot(channels=4)
         self.pressure_plot.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         self.dashboard_layout.addWidget(self.pressure_plot, 1)
 
         dashboard_bottom = QWidget()
+        dashboard_bottom.setObjectName("glassPanel")
         dashboard_bottom_layout = QVBoxLayout(dashboard_bottom)
-        dashboard_bottom_layout.setContentsMargins(0, 0, 0, 0)
-        dashboard_bottom_layout.setSpacing(6)
+        dashboard_bottom_layout.setContentsMargins(18, 16, 18, 16)
+        dashboard_bottom_layout.setSpacing(10)
 
         self.status_label = QLabel("Status: Ready")
-        self.status_label.setStyleSheet("color: #8ec07c; font-weight: bold;")
+        self.status_label.setObjectName("statusPill")
         dashboard_bottom_layout.addWidget(self.status_label)
 
         btn_row = QHBoxLayout()
         self.start_button = QPushButton("Start Routine")
+        self.start_button.setObjectName("startBtn")
         self.start_button.setIcon(QIcon.fromTheme("media-playback-start"))
         self.pause_button = QPushButton("Pause")
+        self.pause_button.setObjectName("pauseBtn")
         self.pause_button.setIcon(QIcon.fromTheme("media-playback-pause"))
         self.stop_button = QPushButton("Stop")
+        self.stop_button.setObjectName("stopBtn")
         self.stop_button.setIcon(QIcon.fromTheme("process-stop"))
-        self.start_button.setMinimumHeight(44)
-        self.pause_button.setMinimumHeight(44)
-        self.stop_button.setMinimumHeight(44)
+        self.start_button.setMinimumHeight(50)
+        self.pause_button.setMinimumHeight(50)
+        self.stop_button.setMinimumHeight(50)
         btn_row.addWidget(self.start_button)
         btn_row.addWidget(self.pause_button)
         btn_row.addWidget(self.stop_button)
@@ -846,13 +1446,9 @@ class ThermobathUI(QWidget):
         self.dashboard_layout.addWidget(dashboard_bottom)
 
         self.method_group = QGroupBox("Method Editor")
-        self.method_group.setStyleSheet(
-            "QGroupBox { border: 1px solid #3a3f4b; border-radius: 8px; margin-top: 10px; }"
-            "QGroupBox::title { subcontrol-origin: margin; left: 10px; padding: 0 6px; color: #83a598; }"
-        )
         method_group_layout = QVBoxLayout(self.method_group)
-        method_group_layout.setContentsMargins(10, 16, 10, 10)
-        method_group_layout.setSpacing(8)
+        method_group_layout.setContentsMargins(14, 20, 14, 14)
+        method_group_layout.setSpacing(10)
 
         self.routine_box = QComboBox()
         self.routine_box.clear()
@@ -861,7 +1457,7 @@ class ThermobathUI(QWidget):
         self.routine_box.addItem(QIcon.fromTheme("view-statistics"), "Smart Dynamic")
         self.routine_row = labeled_icon_row("Routine:", "view-list-text", self.routine_box)
         method_group_layout.addLayout(self.routine_row)
-        self.method_editor_layout.addWidget(self.method_group)
+        self.method_form_layout.addWidget(self.method_group)
 
         # Constant temp widgets
         self.constant_temp_input = QDoubleSpinBox()
@@ -955,7 +1551,7 @@ class ThermobathUI(QWidget):
         hardware_ports_layout.addLayout(comm_layout)
 
         self.transport_label = QLabel("Transport: USB serial (COM)")
-        self.transport_label.setStyleSheet("color: #83a598;")
+        self.transport_label.setObjectName("sectionNote")
         hardware_ports_layout.addWidget(self.transport_label)
 
         self.hardware_layout.addWidget(hardware_ports_group)
@@ -1033,7 +1629,7 @@ class ThermobathUI(QWidget):
         self.stop_log_button = QPushButton("Stop Logging")
         self.stop_log_button.setEnabled(False)
         self.log_rows_label = QLabel("Not logging")
-        self.log_rows_label.setStyleSheet("color: #83a598;")
+        self.log_rows_label.setObjectName("sectionNote")
         log_ctrl_row.addWidget(self.start_log_button)
         log_ctrl_row.addWidget(self.stop_log_button)
         log_ctrl_row.addWidget(self.log_rows_label)
@@ -1093,11 +1689,16 @@ class ThermobathUI(QWidget):
         # Config save/load
         self.save_config_button = QPushButton("Save Config")
         self.load_config_button = QPushButton("Load Config")
+        config_footer = QWidget()
+        config_footer.setObjectName("footerBar")
         config_row = QHBoxLayout()
+        config_row.setContentsMargins(16, 14, 16, 14)
+        config_row.setSpacing(10)
         config_row.addWidget(self.save_config_button)
         config_row.addWidget(self.load_config_button)
-        self.method_editor_layout.addStretch(1)
-        self.method_editor_layout.addLayout(config_row)
+        self.method_form_layout.addStretch(1)
+        config_footer.setLayout(config_row)
+        self.method_editor_layout.addWidget(config_footer)
 
         self.start_monitor_button.clicked.connect(self.start_pressure_monitor)
         self.stop_monitor_button.clicked.connect(self.stop_pressure_monitor)
@@ -1115,10 +1716,22 @@ class ThermobathUI(QWidget):
         self.stop_button.clicked.connect(self.stop_routine)
         self.temp_unit_combo.currentTextChanged.connect(self.on_temp_unit_changed)
         self.routine_box.currentIndexChanged.connect(self.update_fields)
+        self.routine_box.currentIndexChanged.connect(self.update_profile_preview)
+        self.constant_temp_input.valueChanged.connect(self.update_profile_preview)
+        self.cloud_point_input.valueChanged.connect(self.update_profile_preview)
+        self.step_size_input.valueChanged.connect(self.update_profile_preview)
+        self.hold_time_input.valueChanged.connect(self.update_profile_preview)
+        self.min_temp_input.valueChanged.connect(self.update_profile_preview)
+        self.initial_overheat_input.valueChanged.connect(self.update_profile_preview)
+        self.dp_dt_threshold_input.valueChanged.connect(self.update_profile_preview)
+        self.monitor_window_input.valueChanged.connect(self.update_profile_preview)
+        self.pressure_max_input.valueChanged.connect(self.refresh_kpi_cards)
         self.temp_unit = "F"
         self.apply_temp_unit("F", convert_values=False)
         self.update_fields()
+        self.update_profile_preview()
         self.load_config()
+        self.update_profile_preview()
         self.update_plot_scale()
         self.worker = None
         self.monitor_thread = None
@@ -1128,6 +1741,7 @@ class ThermobathUI(QWidget):
         self._log_timer = None
         self._last_temp = None
         self._last_pressure_values = []
+        self._last_pressure_update_time = None
         self._current_run_state = "Idle"
         self.set_run_state("Idle")
 
@@ -1170,6 +1784,14 @@ class ThermobathUI(QWidget):
         if index != -1:
             self.daq_com_port_combo.setCurrentIndex(index)
 
+    def set_active_page(self, index):
+        self.page_stack.setCurrentIndex(index)
+        self.update_sidebar_state(index)
+
+    def update_sidebar_state(self, index):
+        for button_index, button in enumerate(self.sidebar_buttons):
+            button.setChecked(button_index == index)
+
     def _default_engineering_config(self):
         return [
             {
@@ -1183,6 +1805,54 @@ class ThermobathUI(QWidget):
             for i in range(4)
         ]
 
+    def _create_page_header(self, title, subtitle):
+        header = QWidget()
+        header.setObjectName("pageHeader")
+        layout = QVBoxLayout(header)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(4)
+
+        title_label = QLabel(title)
+        title_label.setObjectName("pageTitle")
+        subtitle_label = QLabel(subtitle)
+        subtitle_label.setObjectName("pageSubtitle")
+        subtitle_label.setWordWrap(True)
+
+        layout.addWidget(title_label)
+        layout.addWidget(subtitle_label)
+        return header
+
+    def _refresh_kpi_titles(self):
+        if not hasattr(self, "kpi_cards"):
+            return
+
+        for index, card in enumerate(self.kpi_cards):
+            cfg = self.engineering_config[index] if index < len(self.engineering_config) else {}
+            title = cfg.get("label") or f"Loop {index + 1}"
+            card.set_title(title)
+
+    def _update_kpi_cards(self, values):
+        now = time.time()
+        dt = None if self._last_pressure_update_time is None else max(0.0, now - self._last_pressure_update_time)
+        threshold = self.pressure_max_input.value() if hasattr(self, "pressure_max_input") else None
+
+        for index, card in enumerate(self.kpi_cards):
+            value = values[index] if index < len(values) else None
+            previous_value = self._last_pressure_values[index] if index < len(self._last_pressure_values) else None
+            cfg = self.engineering_config[index] if index < len(self.engineering_config) else {}
+            unit = cfg.get("eu_label", "EU")
+
+            rate = None
+            if dt and dt > 0 and value is not None and previous_value is not None:
+                rate = (value - previous_value) / dt
+
+            card.update_metrics(value, unit=unit, rate=rate, threshold=threshold)
+
+        self._last_pressure_update_time = now
+
+    def refresh_kpi_cards(self, *_args):
+        self._update_kpi_cards(self._last_pressure_values)
+
     def show_command_reference(self):
         dialog = CommandReferenceDialog(self)
         dialog.exec_()
@@ -1191,6 +1861,7 @@ class ThermobathUI(QWidget):
         dialog = EngineeringSettingsDialog(self.engineering_config, self)
         if dialog.exec_() == QDialog.Accepted:
             self.engineering_config = dialog.get_settings()
+            self._refresh_kpi_titles()
             QMessageBox.information(self, "Engineering Settings", "Engineering settings updated for 4 channels.")
 
     def set_standby_button_state(self, standby_enabled):
@@ -1475,6 +2146,7 @@ class ThermobathUI(QWidget):
         """Update the pressure dialog with new data if it's open."""
         if self.pressure_dialog and self.pressure_dialog.isVisible():
             self.pressure_dialog.update_pressure_data(channel_names, values)
+        self._update_kpi_cards(values)
         self._last_pressure_values = list(values)
 
     def update_fields(self):
@@ -1491,6 +2163,19 @@ class ThermobathUI(QWidget):
         self._set_layout_widgets_visible(self.initial_overheat_row, show_profile_fields)
         self._set_layout_widgets_visible(self.dp_dt_threshold_row, show_smart_dynamic)
         self._set_layout_widgets_visible(self.monitor_window_row, show_smart_dynamic)
+
+    def update_profile_preview(self, *_args):
+        self.profile_preview.set_profile_params(
+            self.routine_box.currentText(),
+            self.constant_temp_input.value(),
+            self.cloud_point_input.value(),
+            self.step_size_input.value(),
+            self.hold_time_input.value(),
+            self.min_temp_input.value(),
+            self.initial_overheat_input.value(),
+            self.dp_dt_threshold_input.value(),
+            self.monitor_window_input.value(),
+        )
 
     def _set_layout_widgets_visible(self, layout, visible):
         for i in range(layout.count()):
@@ -1546,6 +2231,7 @@ class ThermobathUI(QWidget):
 
         # Keep top readouts synchronized with the gauge after unit changes.
         self.update_temp_labels(self.gauge.current_temp, self.gauge.target_temp)
+        self.update_profile_preview()
 
     def on_temp_unit_changed(self, unit):
         self.apply_temp_unit(unit, convert_values=True)
@@ -1743,47 +2429,184 @@ class ThermobathUI(QWidget):
 
 def labeled_icon_row(label, icon_name, widget):
     row = QHBoxLayout()
+    row.setSpacing(10)
     icon = QIcon.fromTheme(icon_name)
     icon_label = QLabel()
+    icon_label.setFixedWidth(22)
     if not icon.isNull():
         icon_label.setPixmap(icon.pixmap(20, 20))
+    label_widget = QLabel(label)
+    label_widget.setMinimumWidth(150)
     row.addWidget(icon_label)
-    row.addWidget(QLabel(label))
-    row.addWidget(widget)
+    row.addWidget(label_widget)
+    row.addWidget(widget, 1)
     return row
 
 def dark_stylesheet():
     return """
     QWidget {
-        background-color: #232629;
-        color: #e0e0e0;
+        background-color: #121921;
+        color: #e6edf3;
         font-family: Segoe UI, Arial, sans-serif;
+        font-size: 14px;
+    }
+    QWidget#pageHeader {
+        background: transparent;
+        border: none;
+    }
+    QLabel#pageTitle {
+        color: #f4fbff;
+        font-size: 24px;
+        font-weight: 700;
+        letter-spacing: 0.5px;
+    }
+    QLabel#pageSubtitle {
+        color: #8da4b8;
         font-size: 13px;
     }
+    QLabel#sidebarTitle {
+        color: #f6fbff;
+        font-size: 20px;
+        font-weight: 800;
+        letter-spacing: 1px;
+    }
+    QLabel#sidebarSubtitle {
+        color: #8aa3b8;
+        font-size: 12px;
+    }
+    QFrame#sidebarPanel {
+        background: qlineargradient(x1:0, y1:0, x2:1, y2:1,
+            stop:0 #0f161d, stop:0.55 #17212c, stop:1 #0c131a);
+        border-right: 1px solid #2b3947;
+    }
+    QWidget#glassPanel, QWidget#footerBar {
+        background: qlineargradient(x1:0, y1:0, x2:1, y2:1,
+            stop:0 rgba(20, 28, 37, 0.98), stop:1 rgba(13, 19, 26, 0.98));
+        border: 1px solid #314252;
+        border-radius: 14px;
+    }
     QLineEdit, QSpinBox, QDoubleSpinBox, QComboBox {
-        background-color: #2d2f31;
-        color: #e0e0e0;
-        border: 1px solid #444;
-        border-radius: 4px;
-        padding: 2px 4px;
+        background-color: rgba(25, 34, 44, 0.92);
+        color: #e6edf3;
+        border: 1px solid #3b4c5f;
+        border-radius: 8px;
+        padding: 6px 8px;
+        min-height: 28px;
     }
     QPushButton {
-        background-color: #3c3f41;
-        color: #e0e0e0;
-        border: 1px solid #555;
-        border-radius: 4px;
-        padding: 6px 12px;
+        background-color: #24303c;
+        color: #e6edf3;
+        border: 1px solid #425468;
+        border-radius: 8px;
+        padding: 8px 14px;
+        font-weight: 600;
     }
     QPushButton:hover {
-        background-color: #505357;
+        background-color: #2f3d4b;
+        border-color: #5a738d;
+    }
+    QPushButton:pressed {
+        background-color: #1f2a35;
     }
     QLabel {
-        color: #e0e0e0;
+        color: #e6edf3;
+    }
+    QLabel#telemetryReadout {
+        font-size: 15px;
+        font-weight: 700;
+    }
+    QLabel#statusPill {
+        background-color: rgba(11, 58, 42, 0.58);
+        border: 1px solid rgba(57, 166, 123, 0.55);
+        border-radius: 10px;
+        color: #b8f5d8;
+        padding: 8px 12px;
+    }
+    QLabel#sectionNote {
+        color: #87a5bc;
+        font-size: 12px;
     }
     QComboBox QAbstractItemView {
-        background-color: #232629;
-        color: #e0e0e0;
-        selection-background-color: #444;
+        background-color: #17202a;
+        color: #e6edf3;
+        selection-background-color: #2a9d8f;
+    }
+    QGroupBox {
+        border: 1px solid #33485c;
+        border-radius: 14px;
+        margin-top: 14px;
+        padding-top: 12px;
+        background-color: rgba(17, 24, 32, 0.9);
+    }
+    QGroupBox::title {
+        subcontrol-origin: margin;
+        left: 14px;
+        padding: 0 8px;
+        color: #9dc3e0;
+        font-weight: 700;
+    }
+    QPushButton#sidebarBtn {
+        background-color: rgba(20, 29, 38, 0.9);
+        color: #c9d8e6;
+        border: 1px solid #2e3e4e;
+        border-radius: 14px;
+        padding: 16px 18px;
+        text-align: left;
+        font-size: 15px;
+        font-weight: 700;
+    }
+    QPushButton#sidebarBtn:hover {
+        background-color: rgba(34, 48, 61, 0.98);
+        border-color: #4a6379;
+        color: #f4fbff;
+    }
+    QPushButton#sidebarBtn:checked {
+        background-color: qlineargradient(x1:0, y1:0, x2:1, y2:0,
+            stop:0 #17324a, stop:1 #24557a);
+        border: 1px solid #5ea6d6;
+        color: #ffffff;
+    }
+    QPushButton#sidebarBtn:pressed {
+        background-color: #1f435f;
+    }
+    QPushButton#startBtn {
+        background-color: #0e6b4b;
+        border: 1px solid #2aa678;
+        border-radius: 12px;
+        color: #f4fff9;
+        font-weight: 800;
+        font-size: 15px;
+        padding: 12px 20px;
+    }
+    QPushButton#startBtn:hover {
+        background-color: #14845d;
+        border-color: #48c594;
+    }
+    QPushButton#pauseBtn {
+        background-color: #8b4b11;
+        border: 1px solid #d0852e;
+        border-radius: 12px;
+        color: #fff7ec;
+        font-weight: 800;
+        font-size: 15px;
+        padding: 12px 20px;
+    }
+    QPushButton#pauseBtn:hover {
+        background-color: #a75c18;
+        border-color: #f0a94a;
+    }
+    QPushButton#stopBtn {
+        background-color: #8b1e2d;
+        border: 1px solid #d14a5f;
+        border-radius: 12px;
+        color: #fff4f6;
+        font-weight: 800;
+        font-size: 15px;
+        padding: 12px 20px;
+    }
+    QPushButton#stopBtn:hover {
+        background-color: #a8283a;
+        border-color: #ee6f84;
     }
     """
     
