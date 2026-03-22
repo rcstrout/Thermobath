@@ -1,8 +1,8 @@
-755 INFO: PyInstaller: 6.19.0, contrib hooks: 2026.3
-758 INFO: Python: 3.13.12
-821 INFO: Platform: Windows-11-10.0.26200-SP0
-824 INFO: Python environment: C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.13_3.13.3312.0_x64__qbz5n2kfra8p0
-839 INFO: Module search paths (PYTHONPATH):
+886 INFO: PyInstaller: 6.19.0, contrib hooks: 2026.3
+888 INFO: Python: 3.13.12
+952 INFO: Platform: Windows-11-10.0.26200-SP0
+954 INFO: Python environment: C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.13_3.13.3312.0_x64__qbz5n2kfra8p0
+968 INFO: Module search paths (PYTHONPATH):
 ['C:\\Users\\RC Strout\\Code\\Thermobath',
  'C:\\Program '
  'Files\\WindowsApps\\PythonSoftwareFoundation.Python.3.13_3.13.3312.0_x64__qbz5n2kfra8p0\\python313.zip',
@@ -17,69 +17,62 @@
  'C:\\Program '
  'Files\\WindowsApps\\PythonSoftwareFoundation.Python.3.13_3.13.3312.0_x64__qbz5n2kfra8p0\\Lib\\site-packages',
  'C:\\Users\\RC Strout\\Code\\Thermobath\\scripts']
-1994 INFO: Appending 'datas' from .spec
-1996 INFO: checking Analysis
-2034 INFO: Building because C:\Users\RC Strout\Code\Thermobath\thermobath\ui.py changed
-2035 INFO: Looking for Python shared library...
-2036 INFO: Using Python shared library: C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.13_3.13.3312.0_x64__qbz5n2kfra8p0\python313.dll
-2036 INFO: Running Analysis Analysis-00.toc
-2037 INFO: Target bytecode optimization level: 0
-2037 INFO: Initializing module dependency graph...
-2043 INFO: Initializing module graph hook caches...
-2175 INFO: Analyzing modules for base_library.zip ...
-5816 INFO: Processing standard module hook 'hook-heapq.py' from 'C:\\Users\\RC Strout\\AppData\\Local\\Packages\\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\\LocalCache\\local-packages\\Python313\\site-packages\\PyInstaller\\hooks'
-7447 INFO: Processing standard module hook 'hook-encodings.py' from 'C:\\Users\\RC Strout\\AppData\\Local\\Packages\\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\\LocalCache\\local-packages\\Python313\\site-packages\\PyInstaller\\hooks'
-12523 INFO: Processing standard module hook 'hook-pickle.py' from 'C:\\Users\\RC Strout\\AppData\\Local\\Packages\\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\\LocalCache\\local-packages\\Python313\\site-packages\\PyInstaller\\hooks'
-16208 INFO: Caching module dependency graph...
-16297 INFO: Analyzing C:\Users\RC Strout\Code\Thermobath\scripts\run_gui.py
-16308 INFO: Processing standard module hook 'hook-PyQt5.py' from 'C:\\Users\\RC Strout\\AppData\\Local\\Packages\\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\\LocalCache\\local-packages\\Python313\\site-packages\\PyInstaller\\hooks'
-19160 INFO: Processing standard module hook 'hook-PyQt5.QtWidgets.py' from 'C:\\Users\\RC Strout\\AppData\\Local\\Packages\\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\\LocalCache\\local-packages\\Python313\\site-packages\\PyInstaller\\hooks'
-26817 INFO: Processing standard module hook 'hook-PyQt5.QtCore.py' from 'C:\\Users\\RC Strout\\AppData\\Local\\Packages\\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\\LocalCache\\local-packages\\Python313\\site-packages\\PyInstaller\\hooks'
-35340 INFO: Processing standard module hook 'hook-PyQt5.QtGui.py' from 'C:\\Users\\RC Strout\\AppData\\Local\\Packages\\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\\LocalCache\\local-packages\\Python313\\site-packages\\PyInstaller\\hooks'
-73940 INFO: Processing standard module hook 'hook-sysconfig.py' from 'C:\\Users\\RC Strout\\AppData\\Local\\Packages\\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\\LocalCache\\local-packages\\Python313\\site-packages\\PyInstaller\\hooks'
-73956 INFO: Processing standard module hook 'hook-_ctypes.py' from 'C:\\Users\\RC Strout\\AppData\\Local\\Packages\\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\\LocalCache\\local-packages\\Python313\\site-packages\\PyInstaller\\hooks'
-74258 INFO: Processing module hooks (post-graph stage)...
-74266 WARNING: Hidden import "sip" not found!
-74375 INFO: Performing binary vs. data reclassification (98 entries)
-74494 INFO: Looking for ctypes DLLs
-74539 WARNING: Ignoring /System/Library/Frameworks/IOKit.framework/IOKit imported from C:\Users\RC Strout\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\serial\tools\list_ports_osx.py - only basenames are supported with ctypes imports!
-74541 WARNING: Ignoring /System/Library/Frameworks/CoreFoundation.framework/CoreFoundation imported from C:\Users\RC Strout\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\serial\tools\list_ports_osx.py - only basenames are supported with ctypes imports!
-74552 INFO: Analyzing run-time hooks ...
-74556 INFO: Including run-time hook 'pyi_rth_inspect.py' from 'C:\\Users\\RC Strout\\AppData\\Local\\Packages\\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\\LocalCache\\local-packages\\Python313\\site-packages\\PyInstaller\\hooks\\rthooks'
-74564 INFO: Including run-time hook 'pyi_rth_pyqt5.py' from 'C:\\Users\\RC Strout\\AppData\\Local\\Packages\\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\\LocalCache\\local-packages\\Python313\\site-packages\\PyInstaller\\hooks\\rthooks'
-74570 INFO: Processing pre-find-module-path hook 'hook-_pyi_rth_utils.py' from 'C:\\Users\\RC Strout\\AppData\\Local\\Packages\\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\\LocalCache\\local-packages\\Python313\\site-packages\\PyInstaller\\hooks\\pre_find_module_path'
-74577 INFO: Processing standard module hook 'hook-_pyi_rth_utils.py' from 'C:\\Users\\RC Strout\\AppData\\Local\\Packages\\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\\LocalCache\\local-packages\\Python313\\site-packages\\PyInstaller\\hooks'
-74587 INFO: Including run-time hook 'pyi_rth_pkgutil.py' from 'C:\\Users\\RC Strout\\AppData\\Local\\Packages\\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\\LocalCache\\local-packages\\Python313\\site-packages\\PyInstaller\\hooks\\rthooks'
-74607 INFO: Creating base_library.zip...
-74666 INFO: Looking for dynamic libraries
-75187 INFO: Extra DLL search directories (AddDllDirectory): ['C:\\Users\\RC Strout\\AppData\\Local\\Packages\\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\\LocalCache\\local-packages\\Python313\\site-packages\\PyQt5\\Qt5\\bin']
-75189 INFO: Extra DLL search directories (PATH): ['C:\\Users\\RC Strout\\AppData\\Local\\Packages\\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\\LocalCache\\local-packages\\Python313\\site-packages\\PyQt5\\Qt5\\bin']
-77210 INFO: Warnings written to C:\Users\RC Strout\Code\Thermobath\build\ThermobathController\warn-ThermobathController.txt
-77263 INFO: Graph cross-reference written to C:\Users\RC Strout\Code\Thermobath\build\ThermobathController\xref-ThermobathController.html
-77318 INFO: checking PYZ
-77333 INFO: Building because C:\Users\RC Strout\Code\Thermobath\thermobath\ui.py changed
-77335 INFO: Building PYZ (ZlibArchive) C:\Users\RC Strout\Code\Thermobath\build\ThermobathController\PYZ-00.pyz
-77824 INFO: Building PYZ (ZlibArchive) C:\Users\RC Strout\Code\Thermobath\build\ThermobathController\PYZ-00.pyz completed successfully.
-77855 INFO: checking PKG
-77862 INFO: Building because toc changed
-77863 INFO: Building PKG (CArchive) ThermobathController.pkg
-108913 INFO: Building PKG (CArchive) ThermobathController.pkg completed successfully.
-108927 INFO: Bootloader C:\Users\RC Strout\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\PyInstaller\bootloader\Windows-64bit-intel\runw.exe
-108928 INFO: checking EXE
-108936 INFO: Building because toc changed
-108937 INFO: Building EXE from EXE-00.toc
-108943 INFO: Copying bootloader EXE to C:\Users\RC Strout\Code\Thermobath\dist\ThermobathController.exe
-109185 INFO: Copying icon to EXE
-109373 INFO: Copying 0 resources to EXE
-109374 INFO: Embedding manifest in EXE
-109564 INFO: Appending PKG archive to EXE
-110154 INFO: Fixing EXE headers
-117835 WARNING: Execution of 'update_exe_pe_checksum' failed on attempt #1 / 20: OSError(22, 'Invalid argument'). Retrying in 0.05 second(s)...
-118004 WARNING: Execution of 'update_exe_pe_checksum' failed on attempt #2 / 20: OSError(22, 'Invalid argument'). Retrying in 0.06 second(s)...
-118183 WARNING: Execution of 'update_exe_pe_checksum' failed on attempt #3 / 20: OSError(22, 'Invalid argument'). Retrying in 0.06 second(s)...
-118375 WARNING: Execution of 'update_exe_pe_checksum' failed on attempt #4 / 20: OSError(22, 'Invalid argument'). Retrying in 0.06 second(s)...
-118548 WARNING: Execution of 'update_exe_pe_checksum' failed on attempt #5 / 20: OSError(22, 'Invalid argument'). Retrying in 0.07 second(s)...
-118729 WARNING: Execution of 'update_exe_pe_checksum' failed on attempt #6 / 20: OSError(22, 'Invalid argument'). Retrying in 0.07 second(s)...
-118929 WARNING: Execution of 'update_exe_pe_checksum' failed on attempt #7 / 20: OSError(22, 'Invalid argument'). Retrying in 0.08 second(s)...
-119223 INFO: Building EXE from EXE-00.toc completed successfully.
-119236 INFO: Build complete! The results are available in: C:\Users\RC Strout\Code\Thermobath\dist
+2098 INFO: Appending 'datas' from .spec
+2101 INFO: checking Analysis
+2139 INFO: Building because C:\Users\RC Strout\Code\Thermobath\thermobath\ui.py changed
+2140 INFO: Looking for Python shared library...
+2141 INFO: Using Python shared library: C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.13_3.13.3312.0_x64__qbz5n2kfra8p0\python313.dll
+2141 INFO: Running Analysis Analysis-00.toc
+2142 INFO: Target bytecode optimization level: 0
+2142 INFO: Initializing module dependency graph...
+2151 INFO: Initializing module graph hook caches...
+2271 INFO: Analyzing modules for base_library.zip ...
+6878 INFO: Processing standard module hook 'hook-encodings.py' from 'C:\\Users\\RC Strout\\AppData\\Local\\Packages\\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\\LocalCache\\local-packages\\Python313\\site-packages\\PyInstaller\\hooks'
+13054 INFO: Processing standard module hook 'hook-pickle.py' from 'C:\\Users\\RC Strout\\AppData\\Local\\Packages\\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\\LocalCache\\local-packages\\Python313\\site-packages\\PyInstaller\\hooks'
+15858 INFO: Processing standard module hook 'hook-heapq.py' from 'C:\\Users\\RC Strout\\AppData\\Local\\Packages\\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\\LocalCache\\local-packages\\Python313\\site-packages\\PyInstaller\\hooks'
+17494 INFO: Caching module dependency graph...
+17579 INFO: Analyzing C:\Users\RC Strout\Code\Thermobath\scripts\run_gui.py
+17590 INFO: Processing standard module hook 'hook-PyQt5.py' from 'C:\\Users\\RC Strout\\AppData\\Local\\Packages\\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\\LocalCache\\local-packages\\Python313\\site-packages\\PyInstaller\\hooks'
+20054 INFO: Processing standard module hook 'hook-PyQt5.QtWidgets.py' from 'C:\\Users\\RC Strout\\AppData\\Local\\Packages\\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\\LocalCache\\local-packages\\Python313\\site-packages\\PyInstaller\\hooks'
+27114 INFO: Processing standard module hook 'hook-PyQt5.QtCore.py' from 'C:\\Users\\RC Strout\\AppData\\Local\\Packages\\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\\LocalCache\\local-packages\\Python313\\site-packages\\PyInstaller\\hooks'
+33894 INFO: Processing standard module hook 'hook-PyQt5.QtGui.py' from 'C:\\Users\\RC Strout\\AppData\\Local\\Packages\\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\\LocalCache\\local-packages\\Python313\\site-packages\\PyInstaller\\hooks'
+72507 INFO: Processing standard module hook 'hook-sysconfig.py' from 'C:\\Users\\RC Strout\\AppData\\Local\\Packages\\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\\LocalCache\\local-packages\\Python313\\site-packages\\PyInstaller\\hooks'
+72529 INFO: Processing standard module hook 'hook-_ctypes.py' from 'C:\\Users\\RC Strout\\AppData\\Local\\Packages\\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\\LocalCache\\local-packages\\Python313\\site-packages\\PyInstaller\\hooks'
+73154 INFO: Processing module hooks (post-graph stage)...
+73169 WARNING: Hidden import "sip" not found!
+73342 INFO: Performing binary vs. data reclassification (98 entries)
+73490 INFO: Looking for ctypes DLLs
+73552 WARNING: Ignoring /System/Library/Frameworks/CoreFoundation.framework/CoreFoundation imported from C:\Users\RC Strout\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\serial\tools\list_ports_osx.py - only basenames are supported with ctypes imports!
+73553 WARNING: Ignoring /System/Library/Frameworks/IOKit.framework/IOKit imported from C:\Users\RC Strout\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\serial\tools\list_ports_osx.py - only basenames are supported with ctypes imports!
+73570 INFO: Analyzing run-time hooks ...
+73574 INFO: Including run-time hook 'pyi_rth_inspect.py' from 'C:\\Users\\RC Strout\\AppData\\Local\\Packages\\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\\LocalCache\\local-packages\\Python313\\site-packages\\PyInstaller\\hooks\\rthooks'
+73586 INFO: Including run-time hook 'pyi_rth_pyqt5.py' from 'C:\\Users\\RC Strout\\AppData\\Local\\Packages\\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\\LocalCache\\local-packages\\Python313\\site-packages\\PyInstaller\\hooks\\rthooks'
+73595 INFO: Processing pre-find-module-path hook 'hook-_pyi_rth_utils.py' from 'C:\\Users\\RC Strout\\AppData\\Local\\Packages\\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\\LocalCache\\local-packages\\Python313\\site-packages\\PyInstaller\\hooks\\pre_find_module_path'
+73604 INFO: Processing standard module hook 'hook-_pyi_rth_utils.py' from 'C:\\Users\\RC Strout\\AppData\\Local\\Packages\\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\\LocalCache\\local-packages\\Python313\\site-packages\\PyInstaller\\hooks'
+73616 INFO: Including run-time hook 'pyi_rth_pkgutil.py' from 'C:\\Users\\RC Strout\\AppData\\Local\\Packages\\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\\LocalCache\\local-packages\\Python313\\site-packages\\PyInstaller\\hooks\\rthooks'
+73642 INFO: Creating base_library.zip...
+73743 INFO: Looking for dynamic libraries
+74247 INFO: Extra DLL search directories (AddDllDirectory): ['C:\\Users\\RC Strout\\AppData\\Local\\Packages\\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\\LocalCache\\local-packages\\Python313\\site-packages\\PyQt5\\Qt5\\bin']
+74249 INFO: Extra DLL search directories (PATH): ['C:\\Users\\RC Strout\\AppData\\Local\\Packages\\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\\LocalCache\\local-packages\\Python313\\site-packages\\PyQt5\\Qt5\\bin']
+76763 INFO: Warnings written to C:\Users\RC Strout\Code\Thermobath\build\ThermobathController\warn-ThermobathController.txt
+76821 INFO: Graph cross-reference written to C:\Users\RC Strout\Code\Thermobath\build\ThermobathController\xref-ThermobathController.html
+76898 INFO: checking PYZ
+76920 INFO: Building because C:\Users\RC Strout\Code\Thermobath\thermobath\ui.py changed
+76921 INFO: Building PYZ (ZlibArchive) C:\Users\RC Strout\Code\Thermobath\build\ThermobathController\PYZ-00.pyz
+77493 INFO: Building PYZ (ZlibArchive) C:\Users\RC Strout\Code\Thermobath\build\ThermobathController\PYZ-00.pyz completed successfully.
+77527 INFO: checking PKG
+77533 INFO: Building because toc changed
+77534 INFO: Building PKG (CArchive) ThermobathController.pkg
+114821 INFO: Building PKG (CArchive) ThermobathController.pkg completed successfully.
+114842 INFO: Bootloader C:\Users\RC Strout\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\PyInstaller\bootloader\Windows-64bit-intel\runw.exe
+114843 INFO: checking EXE
+114854 INFO: Building because toc changed
+114855 INFO: Building EXE from EXE-00.toc
+114868 INFO: Copying bootloader EXE to C:\Users\RC Strout\Code\Thermobath\dist\ThermobathController.exe
+115185 INFO: Copying icon to EXE
+115324 INFO: Copying 0 resources to EXE
+115326 INFO: Embedding manifest in EXE
+115458 INFO: Appending PKG archive to EXE
+116068 INFO: Fixing EXE headers
+122886 INFO: Building EXE from EXE-00.toc completed successfully.
+122905 INFO: Build complete! The results are available in: C:\Users\RC Strout\Code\Thermobath\dist

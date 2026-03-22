@@ -1246,6 +1246,9 @@ class ThermobathUI(QWidget):
     def __init__(self):
         super().__init__()
         self.engineering_config = self._default_engineering_config()
+        # Initialize pressure-related attributes early to avoid AttributeError in signal handlers
+        self._last_pressure_values = []
+        self._last_pressure_update_time = None
         self.setWindowTitle("Thermobath Controller")
         self.resize(480, 750)  # Set a reasonable default size
         self.setMinimumSize(450, 700)
@@ -1740,8 +1743,6 @@ class ThermobathUI(QWidget):
         self._data_logger = None
         self._log_timer = None
         self._last_temp = None
-        self._last_pressure_values = []
-        self._last_pressure_update_time = None
         self._current_run_state = "Idle"
         self.set_run_state("Idle")
 
@@ -1851,7 +1852,8 @@ class ThermobathUI(QWidget):
         self._last_pressure_update_time = now
 
     def refresh_kpi_cards(self, *_args):
-        self._update_kpi_cards(self._last_pressure_values)
+        if hasattr(self, '_last_pressure_values'):
+            self._update_kpi_cards(self._last_pressure_values)
 
     def show_command_reference(self):
         dialog = CommandReferenceDialog(self)
